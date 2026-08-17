@@ -8,14 +8,14 @@
     "scheme": "euworksupport",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.euworksupport.app",
+      "bundleIdentifier": "ios.euworksupport.app",
       "icon": "./assets/iosIcons.icon",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.euworksupport.app",
+      "package": "ios.euworksupport.app",
       "icon": "./assets/images/adaptive-icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#002396",
@@ -70,12 +70,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "02bd2770-4cf7-499e-88bd-41564e2aab57"
-      }
     }
   }
 }
