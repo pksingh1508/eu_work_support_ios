@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { View } from "react-native";
 
 import { iconMap } from "@/components/ui/icon-names";
 import type { IconProps } from "@/components/ui/icon.types";
@@ -12,11 +13,8 @@ export function Icon({ name, size = 22, color, style }: IconProps) {
   const { colors } = useTheme();
 
   return (
-    <Ionicons
-      name={iconMap[name].ion}
-      size={size}
-      color={color ?? colors.text}
-      style={style}
-    />
+    <View style={[{ width: size, height: size }, style]}>
+      <Ionicons name={iconMap[name].ion} size={size} color={color ?? colors.text} />
+    </View>
   );
 }

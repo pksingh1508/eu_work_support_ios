@@ -1,7 +1,13 @@
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, View, type ListRenderItem } from "react-native";
+import {
+  StyleSheet,
+  View,
+  type ListRenderItem,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -260,7 +266,7 @@ function keyExtractor(item: HomeListItem) {
 type HomeFilterBarProps = {
   value: HomeFilterKey;
   onChange: (value: HomeFilterKey) => void;
-  dockStyle: AnimatedStyle;
+  dockStyle: StyleProp<AnimatedStyle<ViewStyle>>;
 };
 
 function HomeFilterBar({ value, onChange, dockStyle }: HomeFilterBarProps) {

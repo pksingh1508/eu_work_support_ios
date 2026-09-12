@@ -1,11 +1,5 @@
-import { ScreenPlaceholder } from '@/components/ui/screen-placeholder';
+import { Redirect } from "expo-router";
 
 export default function ProfileHelpScreen() {
-  return (
-    <ScreenPlaceholder
-      eyebrow="Profile"
-      title="Help access"
-      description="Support requests, legal links, and product help will live here."
-    />
-  );
+  return <Redirect href="/profile/support" />;
 }

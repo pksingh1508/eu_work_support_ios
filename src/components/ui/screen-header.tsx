@@ -4,6 +4,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { AppText } from "@/components/ui/app-text";
 import { IconButton } from "@/components/ui/icon-button";
+import type { IconName } from "@/components/ui/icon-names";
 import { Layout, Spacing } from "@/constants/theme";
 
 export type ScreenHeaderProps = {
@@ -11,9 +12,13 @@ export type ScreenHeaderProps = {
   subtitle?: string;
   onBack?: () => void;
   showBack?: boolean;
+  /** Icon of the leading button; use `close` for modal roots. */
+  backIcon?: IconName;
   right?: ReactNode;
   /** `inline` centres the title beside the back button, `large` stacks it below. */
   variant?: "inline" | "large";
+  /** Apply the standard horizontal screen padding (for headers outside a padded body). */
+  padded?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -25,8 +30,10 @@ export function ScreenHeader({
   subtitle,
   onBack,
   showBack = true,
+  backIcon = "chevronLeft",
   right,
   variant = "inline",
+  padded = false,
   style,
 }: ScreenHeaderProps) {
   const router = useRouter();
@@ -47,9 +54,9 @@ export function ScreenHeader({
 
   const backButton = showBack ? (
     <IconButton
-      icon="chevronLeft"
+      icon={backIcon}
       variant="glass"
-      accessibilityLabel="Go back"
+      accessibilityLabel={backIcon === "close" ? "Close" : "Go back"}
       onPress={handleBack}
     />
   ) : (
@@ -60,7 +67,7 @@ export function ScreenHeader({
 
   if (variant === "large") {
     return (
-      <View style={[styles.container, style]}>
+      <View style={[styles.container, padded ? styles.padded : null, style]}>
         <View style={styles.row}>
           {backButton}
           {rightSlot}
@@ -80,7 +87,7 @@ export function ScreenHeader({
   }
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, padded ? styles.padded : null, style]}>
       <View style={styles.row}>
         {backButton}
         <View style={styles.titleWrap}>
@@ -99,6 +106,10 @@ export function ScreenHeader({
 const styles = StyleSheet.create({
   container: {
     paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
+  },
+  padded: {
+    paddingHorizontal: Layout.screenPadding,
   },
   row: {
     flexDirection: "row",

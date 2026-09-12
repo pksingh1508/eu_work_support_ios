@@ -22,7 +22,9 @@ function applyPreference(preference: ThemePreference) {
     return;
   }
 
-  Appearance.setColorScheme(preference === "system" ? null : preference);
+  Appearance.setColorScheme(
+    preference === "system" ? "unspecified" : preference,
+  );
 }
 
 export const useThemeStore = create<ThemeStore>((set) => {
