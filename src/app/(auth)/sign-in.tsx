@@ -1,6 +1,6 @@
 import { useAuth, useSignIn } from "@clerk/expo";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/ui/app-button";
@@ -16,6 +16,8 @@ import { showInfoToast } from "@/lib/toast";
 import { withTimeout } from "@/lib/with-timeout";
 
 const CLERK_SIGN_IN_TIMEOUT_MS = 20000;
+/** After this long without Clerk loading, explain instead of spinning silently. */
+const CLERK_LOAD_WARNING_MS = 8000;
 
 type SecondFactorMethod = "email_code" | "phone_code";
 
@@ -32,8 +34,19 @@ export default function SignInScreen() {
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClerkSlow, setIsClerkSlow] = useState(false);
 
   const safeReturnTo = getSafeReturnTo(returnTo);
+
+  useEffect(() => {
+    if (isLoaded) {
+      setIsClerkSlow(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setIsClerkSlow(true), CLERK_LOAD_WARNING_MS);
+    return () => clearTimeout(timer);
+  }, [isLoaded]);
 
   const finishSignIn = async () => {
     await signIn.finalize({
@@ -110,7 +123,9 @@ export default function SignInScreen() {
     }
 
     if (!isLoaded) {
-      setError("Sign-in could not start. Please close and reopen the app, then try again.");
+      setError(
+        "Secure login is still starting. Check your connection and try again in a moment.",
+      );
       return;
     }
 
@@ -233,6 +248,14 @@ export default function SignInScreen() {
         onSubmitEditing={secondFactorMethod ? undefined : handleSignIn}
       />
 
+      {!isLoaded && isClerkSlow ? (
+        <AuthNotice
+          tone="primary"
+          icon="clock"
+          text="Secure login is taking longer than usual to start. Check your connection; if this keeps happening, restart the app."
+        />
+      ) : null}
+
       {secondFactorMethod ? (
         <>
           <AuthNotice
@@ -273,10 +296,12 @@ export default function SignInScreen() {
       </View>
 
       <AppButton
-        label={secondFactorMethod ? "Verify and log in" : "Log in"}
+        label={
+          !isLoaded ? "Connecting…" : secondFactorMethod ? "Verify and log in" : "Log in"
+        }
         icon="signIn"
-        loading={isSubmitting}
-        disabled={!canSubmit}
+        loading={isSubmitting || !isLoaded}
+        disabled={!canSubmit || !isLoaded}
         onPress={secondFactorMethod ? handleSecondFactor : handleSignIn}
       />
 
