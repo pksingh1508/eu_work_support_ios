@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import type { IconName } from "@/components/ui/icon-names";
 import type { IconWeight } from "@/components/ui/icon.types";
 import { PressableScale } from "@/components/ui/pressable-scale";
-import { Layout, Shadows } from "@/constants/theme";
+import { Layout } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import type { HapticKind } from "@/lib/haptics";
 
@@ -87,7 +87,7 @@ export function IconButton({
       style={[shape, disabled ? styles.disabled : null, style]}
     >
       {variant === "glass" ? (
-        <GlassSurface interactive style={[shape, styles.center, Shadows.card]}>
+        <GlassSurface interactive style={[shape, styles.center]}>
           {iconElement}
         </GlassSurface>
       ) : (

@@ -2,19 +2,22 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Toaster } from "sonner-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import { AppProviders } from "@/components/app-providers";
-import { Radii, Shadows, Typography } from "@/constants/theme";
+import { toastConfig } from "@/components/ui/app-toast";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { TOAST_DURATION_MS } from "@/lib/toast";
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <AppProviders>
         <RootNavigator />
-        <AppToaster />
         <StatusBar style="auto" />
+        <AppToaster />
       </AppProviders>
     </GestureHandlerRootView>
   );
@@ -54,33 +57,19 @@ function RootNavigator() {
   );
 }
 
+/**
+ * Global toast host. Rendered last so it floats above every screen and modal.
+ */
 function AppToaster() {
-  const { colors, scheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <Toaster
-      theme={scheme}
-      duration={2200}
-      position="top-center"
-      visibleToasts={2}
-      swipeToDismissDirection="up"
-      toastOptions={{
-        titleStyle: {
-          ...Typography.headline,
-          color: colors.text,
-        },
-        descriptionStyle: {
-          ...Typography.footnote,
-          color: colors.textSecondary,
-        },
-        style: {
-          backgroundColor: colors.surfaceLowest,
-          borderColor: colors.outline,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderRadius: Radii.lg,
-          ...Shadows.floating,
-        },
-      }}
+    <Toast
+      config={toastConfig}
+      position="top"
+      topOffset={insets.top + Spacing.sm}
+      visibilityTime={TOAST_DURATION_MS}
+      swipeable
     />
   );
 }

@@ -1,31 +1,28 @@
 import { BlurView } from "expo-blur";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Platform, StyleSheet, View, type ViewProps } from "react-native";
 
 import { useTheme } from "@/hooks/use-theme";
 
-const hasLiquidGlass = Platform.OS === "ios" && isLiquidGlassAvailable();
-
 export type GlassSurfaceProps = ViewProps & {
-  /** Whether the glass reacts to touches (iOS 26 only). */
+  /** Reserved for platforms with interactive glass; currently a no-op. */
   interactive?: boolean;
-  /** Blur strength for the pre-iOS 26 fallback. */
+  /** Blur strength on iOS. */
   intensity?: number;
-  /** Optional tint mixed into the glass. */
+  /** Optional tint mixed into the surface (non-iOS fallback only). */
   tintColor?: string;
 };
 
 /**
- * Frosted surface used for floating chrome (header buttons, docked bars).
+ * Frosted surface used for floating chrome (header buttons, card actions).
  *
- * - iOS 26+: real Liquid Glass.
- * - Older iOS: system material blur.
- * - Android / web: translucent card surface.
+ * iOS uses the system thin material blur. Liquid Glass (`expo-glass-effect`)
+ * was tried first but does not render when the view is first laid out under
+ * an opacity animation (list entrances, tab fades, toast slide-ins), so the
+ * material blur is used for reliability. Android / web get a translucent card.
  *
  * Give it a `borderRadius` through `style`; it is clipped automatically.
  */
 export function GlassSurface({
-  interactive = false,
   intensity = 45,
   tintColor,
   style,
@@ -33,21 +30,6 @@ export function GlassSurface({
   ...rest
 }: GlassSurfaceProps) {
   const { colors, isDark } = useTheme();
-
-  if (hasLiquidGlass) {
-    return (
-      <GlassView
-        {...rest}
-        glassEffectStyle="regular"
-        isInteractive={interactive}
-        tintColor={tintColor}
-        colorScheme={isDark ? "dark" : "light"}
-        style={[styles.clip, style]}
-      >
-        {children}
-      </GlassView>
-    );
-  }
 
   if (Platform.OS === "ios") {
     return (
@@ -68,7 +50,7 @@ export function GlassSurface({
       style={[
         styles.clip,
         {
-          backgroundColor: colors.surfaceLowest,
+          backgroundColor: tintColor ?? colors.surfaceLowest,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: colors.outline,
         },

@@ -5,7 +5,7 @@ import { StyleSheet, View } from "react-native";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { getSFSymbol } from "@/components/ui/icon-names";
 import type { NativeMenuButtonProps } from "@/components/ui/native-menu-button.types";
-import { Layout, Shadows } from "@/constants/theme";
+import { Layout } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 /**
@@ -31,7 +31,7 @@ export function NativeMenuButton({
       accessibilityLabel={accessibilityLabel}
     >
       {variant === "glass" ? (
-        <GlassSurface interactive style={[StyleSheet.absoluteFill, shape, Shadows.card]} />
+        <GlassSurface interactive style={[StyleSheet.absoluteFill, shape]} />
       ) : (
         <View
           style={[StyleSheet.absoluteFill, shape, { backgroundColor: colors.surfaceHigh }]}
