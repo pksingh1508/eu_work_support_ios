@@ -1,8 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { StyleSheet } from "react-native";
 
-import { Screen } from "@/components/ui/screen";
-import { LoadingState } from "@/components/ui/state-views";
 import { useAuthAccess } from "@/features/auth/access";
 import { UnAuthenticated } from "@/features/auth/components/unauthenticated";
 
@@ -11,25 +8,13 @@ type PremiumGuardProps = PropsWithChildren<{
 }>;
 
 export function PremiumGuard({ children, returnTo }: PremiumGuardProps) {
-  const { isAuthLoaded, isSignedIn, isProfileLoading } = useAuthAccess();
+  const { isAuthLoaded, isSignedIn } = useAuthAccess();
 
-  if (!isAuthLoaded || isProfileLoading) {
-    return (
-      <Screen contentContainerStyle={styles.center}>
-        <LoadingState label="Loading your account…" />
-      </Screen>
-    );
-  }
-
-  if (!isSignedIn) {
+  // Keep the access options available while Clerk restores the session. A slow
+  // auth check or profile request must not trap visitors behind a spinner.
+  if (!isAuthLoaded || !isSignedIn) {
     return <UnAuthenticated returnTo={returnTo} />;
   }
 
   return <>{children}</>;
 }
-
-const styles = StyleSheet.create({
-  center: {
-    justifyContent: "center",
-  },
-});
