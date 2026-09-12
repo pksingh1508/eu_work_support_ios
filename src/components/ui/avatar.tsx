@@ -1,6 +1,6 @@
-import { Image } from "expo-image";
+import { Image, type ImageStyle } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, View, type StyleProp } from "react-native";
 
 import { AppText } from "@/components/ui/app-text";
 import { Icon } from "@/components/ui/icon";
@@ -10,7 +10,7 @@ type AvatarProps = {
   name: string;
   imageUrl?: string | null;
   size?: number;
-  style?: StyleProp<ViewStyle>;
+  style?: StyleProp<ImageStyle>;
 };
 
 export function getInitials(name: string) {
