@@ -2,7 +2,7 @@
 
 EU Work Support is a mobile-first Expo application that helps users explore European work, visa, and country guidance. The app keeps the home experience public, then protects deeper country, visa, saved, search, and profile flows behind a verified PRO access model.
 
-The project uses Expo Router, Clerk authentication, Supabase data access, NativeWind styling, and a direct website email endpoint for account verification.
+The project uses Expo Router, Clerk authentication, Supabase data access, a token-based StyleSheet design system with native SwiftUI controls from Expo UI, and a direct website email endpoint for account verification.
 
 ## Screenshots
 
@@ -42,7 +42,8 @@ The project uses Expo Router, Clerk authentication, Supabase data access, Native
 - React 19
 - Expo Router
 - TypeScript
-- NativeWind and Tailwind CSS
+- StyleSheet design tokens (`src/constants/theme.ts`) with React Native Reanimated animations
+- Expo UI (SwiftUI) for native iOS controls, SF Symbols via expo-symbols, Liquid Glass via expo-glass-effect
 - Clerk Expo SDK
 - Supabase JavaScript client
 - Sonner Native toasts
@@ -214,7 +215,9 @@ If login verification always fails, confirm that `is_email_pro_user` exists in S
 
 ## Design Notes
 
-- The UI is mobile-first and uses rounded, high-contrast cards with large touch targets.
+- The UI follows DESIGN.md ("The Diplomatic Atelier"): tonal surfaces instead of divider lines, Poppins headings with Inter body text, and spring-based micro interactions.
+- Shared primitives live in `src/components/ui` (AppText, Surface, ListRow, FilterBar, IconButton, SearchField, TextField, state views).
+- Settings uses a native SwiftUI Form (Expo UI) on iOS; Saved and detail screens use native context menus.
 - The tab bar keeps Home public while Search, Saved, and Profile remain protected.
 - The profile fallback name is `Welcome` when no user name has been saved.
 - Auth screens use top navigation headers with back buttons and form content placed below the title.

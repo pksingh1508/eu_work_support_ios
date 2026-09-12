@@ -46,7 +46,7 @@ type HomeListItem =
   | { type: "hero" }
   | { type: "popular" }
   | { type: "filters" }
-  | { type: "country"; country: CountryName; index: number };
+  | { type: "country"; country: CountryName; index: number; filter: HomeFilterKey };
 
 const STICKY_FILTER_INDEX = 2;
 const FILTER_DOCK_FADE_DISTANCE = 24;
@@ -95,6 +95,7 @@ export function HomeScreen() {
         type: "country" as const,
         country,
         index,
+        filter: activeFilter,
       })),
     ],
     [activeFilter],
@@ -259,8 +260,14 @@ export function HomeScreen() {
   );
 }
 
+/**
+ * Country keys include the active filter so switching filters remounts the
+ * rows and replays the staggered entrance.
+ */
 function keyExtractor(item: HomeListItem) {
-  return item.type === "country" ? `country-${item.country}` : item.type;
+  return item.type === "country"
+    ? `country-${item.filter}-${item.country}`
+    : item.type;
 }
 
 type HomeFilterBarProps = {
