@@ -21,6 +21,8 @@ type SavedCardProps = {
   onRemove: (item: SavedItem) => void;
 };
 
+const MENU_BUTTON_SIZE = 36;
+
 export const SavedCard = memo(function SavedCard({
   item,
   isRemoving,
@@ -40,72 +42,86 @@ export const SavedCard = memo(function SavedCard({
   const chipIcon = isCountry ? "flag" : getCategoryIcon(item.categoryIcon);
 
   return (
-    <PressableScale
-      onPress={() => onOpen(item)}
-      scaleTo={0.985}
-      pressedOpacity={0.94}
-      disabled={isRemoving}
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${title}`}
-      style={[
-        styles.card,
-        Shadows.card,
-        { backgroundColor: colors.surfaceLowest },
-        isRemoving ? styles.removing : null,
-      ]}
-    >
-      <View style={styles.header}>
-        <CountryFlag code={flagCode} emoji={flagEmoji} size="md" />
-        <View style={styles.titles}>
-          <AppText variant="eyebrow" color="primary" numberOfLines={1}>
-            {eyebrow}
-          </AppText>
-          <AppText variant="title3" numberOfLines={2}>
-            {title}
-          </AppText>
+    // The menu button is a sibling of the pressable card, not a child, so a
+    // tap on it opens the native menu instead of triggering the card press.
+    <View style={styles.wrapper}>
+      <PressableScale
+        onPress={() => onOpen(item)}
+        scaleTo={0.985}
+        pressedOpacity={0.94}
+        disabled={isRemoving}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${title}`}
+        style={[
+          styles.card,
+          Shadows.card,
+          { backgroundColor: colors.surfaceLowest },
+          isRemoving ? styles.removing : null,
+        ]}
+      >
+        <View style={styles.header}>
+          <CountryFlag code={flagCode} emoji={flagEmoji} size="md" />
+          <View style={styles.titles}>
+            <AppText variant="eyebrow" color="primary" numberOfLines={1}>
+              {eyebrow}
+            </AppText>
+            <AppText variant="title3" numberOfLines={2}>
+              {title}
+            </AppText>
+          </View>
         </View>
-        <NativeMenuButton
-          size={36}
-          variant="tonal"
-          accessibilityLabel={`Options for ${title}`}
-          actions={[
-            { key: "open", title: "Open guide", icon: "arrowUpRight", onPress: () => onOpen(item) },
-            {
-              key: "remove",
-              title: "Remove from saved",
-              icon: "trash",
-              destructive: true,
-              onPress: () => onRemove(item),
-            },
-          ]}
-        />
-      </View>
 
-      {description ? (
-        <AppText
-          variant="subhead"
-          color="textSecondary"
-          numberOfLines={2}
-          style={styles.description}
-        >
-          {description}
-        </AppText>
-      ) : null}
-
-      <View style={styles.footer}>
-        <Chip label={chipLabel} icon={chipIcon} tone="neutral" />
-        <View style={styles.saved}>
-          <Icon name="clock" size={14} color={colors.textTertiary} />
-          <AppText variant="caption" color="textTertiary">
-            {formatSavedDate(item.createdAt)}
+        {description ? (
+          <AppText
+            variant="subhead"
+            color="textSecondary"
+            numberOfLines={2}
+            style={styles.description}
+          >
+            {description}
           </AppText>
+        ) : null}
+
+        <View style={styles.footer}>
+          <Chip label={chipLabel} icon={chipIcon} tone="neutral" />
+          <View style={styles.saved}>
+            <Icon name="clock" size={14} color={colors.textTertiary} />
+            <AppText variant="caption" color="textTertiary">
+              {formatSavedDate(item.createdAt)}
+            </AppText>
+          </View>
         </View>
-      </View>
-    </PressableScale>
+      </PressableScale>
+
+      <NativeMenuButton
+        size={MENU_BUTTON_SIZE}
+        variant="tonal"
+        style={styles.menuButton}
+        accessibilityLabel={`Options for ${title}`}
+        actions={[
+          {
+            key: "open",
+            title: "Open guide",
+            icon: "arrowUpRight",
+            onPress: () => onOpen(item),
+          },
+          {
+            key: "remove",
+            title: "Remove from saved",
+            icon: "trash",
+            destructive: true,
+            onPress: () => onRemove(item),
+          },
+        ]}
+      />
+    </View>
   );
 });
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: "relative",
+  },
   card: {
     borderRadius: Radii.xl,
     padding: Spacing.xl,
@@ -117,6 +133,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
+    // Leave room for the overlaid menu button.
+    paddingRight: MENU_BUTTON_SIZE + Spacing.md,
   },
   titles: {
     flex: 1,
@@ -137,5 +155,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
+  },
+  menuButton: {
+    position: "absolute",
+    top: Spacing.xl,
+    right: Spacing.xl,
   },
 });

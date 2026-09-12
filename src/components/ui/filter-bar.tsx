@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from "react";
 import {
   Pressable,
   ScrollView,
@@ -12,6 +13,7 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 
 import { AppText } from "@/components/ui/app-text";
@@ -36,12 +38,16 @@ type FilterBarProps<T extends string> = {
   style?: StyleProp<ViewStyle>;
 };
 
-type OptionLayouts = Record<string, { x: number; width: number }>;
+type OptionLayout = { x: number; width: number };
 
 const TRACK_PADDING = Spacing.xs;
 
 /**
  * Segmented filter with a spring-driven sliding indicator.
+ *
+ * Option layouts are kept in a plain ref (the JS thread is the only writer)
+ * and the indicator is driven by dedicated shared values, so every option
+ * gets the highlight regardless of the order in which layouts arrive.
  */
 export function FilterBar<T extends string>({
   options,
@@ -52,34 +58,58 @@ export function FilterBar<T extends string>({
 }: FilterBarProps<T>) {
   const { colors } = useTheme();
   const reducedMotion = useReducedMotion();
-  const layouts = useSharedValue<OptionLayouts>({});
+  const layoutsRef = useRef<Record<string, OptionLayout>>({});
+  const hasPositionedRef = useRef(false);
+  const indicatorX = useSharedValue(0);
+  const indicatorWidth = useSharedValue(0);
+  const indicatorOpacity = useSharedValue(0);
 
-  const indicatorStyle = useAnimatedStyle(() => {
-    const layout = layouts.value[value];
+  const moveIndicator = useCallback(
+    (key: string, animate: boolean) => {
+      const layout = layoutsRef.current[key];
 
-    if (!layout) {
-      return { opacity: 0 };
+      if (!layout) {
+        return;
+      }
+
+      const shouldAnimate = animate && hasPositionedRef.current && !reducedMotion;
+      hasPositionedRef.current = true;
+
+      indicatorX.value = shouldAnimate
+        ? withSpring(layout.x, Motion.spring.gentle)
+        : layout.x;
+      indicatorWidth.value = shouldAnimate
+        ? withSpring(layout.width, Motion.spring.gentle)
+        : layout.width;
+      indicatorOpacity.value = withTiming(1, { duration: Motion.duration.fast });
+    },
+    [indicatorOpacity, indicatorWidth, indicatorX, reducedMotion],
+  );
+
+  useEffect(() => {
+    moveIndicator(value, true);
+  }, [moveIndicator, value]);
+
+  const handleLayout = (key: string, event: LayoutChangeEvent) => {
+    const { x, width } = event.nativeEvent.layout;
+    const previous = layoutsRef.current[key];
+
+    if (previous && previous.x === x && previous.width === width) {
+      return;
     }
 
-    return {
-      opacity: 1,
-      width: reducedMotion
-        ? layout.width
-        : withSpring(layout.width, Motion.spring.gentle),
-      transform: [
-        {
-          translateX: reducedMotion
-            ? layout.x
-            : withSpring(layout.x, Motion.spring.gentle),
-        },
-      ],
-    };
-  }, [value, reducedMotion]);
+    layoutsRef.current[key] = { x, width };
 
-  const createLayoutHandler = (key: string) => (event: LayoutChangeEvent) => {
-    const { x, width } = event.nativeEvent.layout;
-    layouts.value = { ...layouts.value, [key]: { x, width } };
+    if (key === value) {
+      moveIndicator(key, false);
+    }
   };
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: indicatorOpacity.value,
+    width: indicatorWidth.value,
+    transform: [{ translateX: indicatorX.value }],
+  }));
 
   const select = (nextValue: T) => {
     if (nextValue === value) {
@@ -113,7 +143,7 @@ export function FilterBar<T extends string>({
         return (
           <Pressable
             key={option.key}
-            onLayout={createLayoutHandler(option.key)}
+            onLayout={(event) => handleLayout(option.key, event)}
             onPress={() => select(option.key)}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
