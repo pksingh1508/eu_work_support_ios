@@ -1,58 +1,24 @@
 import { ClerkProvider, useAuth } from "@clerk/expo";
-import { useFonts } from "expo-font";
-import * as ExpoSplashScreen from "expo-splash-screen";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import { useFonts } from "expo-font";
 import { useRouter, useSegments } from "expo-router";
-import { PropsWithChildren, useEffect, useState } from "react";
-import {
-  Text,
-  TextInput,
-  useColorScheme,
-  type TextInputProps,
-  type TextProps,
-} from "react-native";
+import * as ExpoSplashScreen from "expo-splash-screen";
+import { PropsWithChildren, useEffect, useMemo } from "react";
 
 import { AuthAccessProvider, useAuthAccess } from "@/features/auth/access";
 import { useSavedStore } from "@/features/saved/saved-store";
+import { useThemeStore } from "@/features/theme/theme-store";
+import { useTheme } from "@/hooks/use-theme";
 import { clerkPublishableKey, clerkTokenCache } from "@/lib/clerk";
 import { optionalEnv } from "@/lib/env";
-import { appFonts, FontFamily } from "@/lib/fonts";
-import { getThemePreference } from "@/lib/local-storage";
+import { appFonts } from "@/lib/fonts";
 import { setSupabaseAccessTokenGetter } from "@/lib/supabase";
 
 void ExpoSplashScreen.preventAutoHideAsync();
-
-let defaultTextFontsConfigured = false;
-
-function configureDefaultTextFonts() {
-  if (defaultTextFontsConfigured) {
-    return;
-  }
-
-  const textDefaults = Text as unknown as {
-    defaultProps?: TextProps;
-  };
-  const textInputDefaults = TextInput as unknown as {
-    defaultProps?: TextInputProps;
-  };
-
-  textDefaults.defaultProps = {
-    ...textDefaults.defaultProps,
-    style: [{ fontFamily: FontFamily.body }, textDefaults.defaultProps?.style],
-  };
-  textInputDefaults.defaultProps = {
-    ...textInputDefaults.defaultProps,
-    style: [
-      { fontFamily: FontFamily.body },
-      textInputDefaults.defaultProps?.style,
-    ],
-  };
-  defaultTextFontsConfigured = true;
-}
 
 function SupabaseAuthBridge({ children }: PropsWithChildren) {
   const { getToken } = useAuth();
@@ -90,12 +56,7 @@ function AuthGate({ children }: PropsWithChildren) {
     if (isAuthRoute) {
       router.replace("/");
     }
-  }, [
-    isAuthLoaded,
-    isSignedIn,
-    isAuthRoute,
-    router,
-  ]);
+  }, [isAuthLoaded, isSignedIn, isAuthRoute, router]);
 
   return children;
 }
@@ -116,23 +77,39 @@ function SavedItemsHydrator() {
     }
 
     void hydrateForUser(userId);
-  }, [
-    hydrateForUser,
-    isAuthLoaded,
-    isSignedIn,
-    resetSavedStore,
-    userId,
-  ]);
+  }, [hydrateForUser, isAuthLoaded, isSignedIn, resetSavedStore, userId]);
 
   return null;
 }
 
+function NavigationThemeProvider({ children }: PropsWithChildren) {
+  const { colors, isDark } = useTheme();
+
+  const navigationTheme = useMemo(() => {
+    const base = isDark ? DarkTheme : DefaultTheme;
+
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.surfaceLowest,
+        text: colors.text,
+        border: colors.outline,
+        notification: colors.tertiary,
+      },
+    };
+  }, [colors, isDark]);
+
+  return <ThemeProvider value={navigationTheme}>{children}</ThemeProvider>;
+}
+
 export function AppProviders({ children }: PropsWithChildren) {
   const [fontsLoaded, fontError] = useFonts(appFonts);
-  const colorScheme = useColorScheme();
-  const [themePreference] = useState(() => getThemePreference());
-  const resolvedColorScheme =
-    themePreference === "system" ? colorScheme : themePreference;
+  // Subscribing here guarantees the stored appearance preference is applied
+  // before the first frame renders.
+  useThemeStore((state) => state.preference);
 
   useEffect(() => {
     if (!fontsLoaded && !fontError) {
@@ -146,10 +123,6 @@ export function AppProviders({ children }: PropsWithChildren) {
     void ExpoSplashScreen.hideAsync();
   }, [fontError, fontsLoaded]);
 
-  if (fontsLoaded) {
-    configureDefaultTextFonts();
-  }
-
   if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -160,14 +133,12 @@ export function AppProviders({ children }: PropsWithChildren) {
       tokenCache={clerkTokenCache}
     >
       <SupabaseAuthBridge>
-        <ThemeProvider
-          value={resolvedColorScheme === "dark" ? DarkTheme : DefaultTheme}
-        >
+        <NavigationThemeProvider>
           <AuthAccessProvider>
             <SavedItemsHydrator />
             <AuthGate>{children}</AuthGate>
           </AuthAccessProvider>
-        </ThemeProvider>
+        </NavigationThemeProvider>
       </SupabaseAuthBridge>
     </ClerkProvider>
   );

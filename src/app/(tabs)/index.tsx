@@ -1,5 +1,5 @@
-import { HomeDemo } from '@/components/home-demo';
+import { HomeScreen } from "@/features/home/home-screen";
 
-export default function HomeScreen() {
-  return <HomeDemo />;
+export default function HomeRoute() {
+  return <HomeScreen />;
 }
