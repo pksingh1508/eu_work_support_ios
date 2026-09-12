@@ -20,6 +20,8 @@ import { ErrorState } from "@/components/ui/state-views";
 import { Surface } from "@/components/ui/surface";
 import { getCountryCodeBySlug } from "@/constants/country";
 import { Radii, Spacing } from "@/constants/theme";
+import { PaywallCard } from "@/features/billing/paywall-card";
+import { usePremiumGate } from "@/features/billing/premium-gate";
 import { getCategoryIcon } from "@/features/content/category-icon";
 import {
   fetchVisaDocument,
@@ -36,6 +38,7 @@ export function DocumentScreen() {
   const { userId } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const documentId = Array.isArray(id) ? id[0] : id;
+  const { planStatus, isPremium, showPremiumRequired } = usePremiumGate();
   const requestIdRef = useRef(0);
   const [document, setDocument] = useState<VisaDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,19 +92,24 @@ export function DocumentScreen() {
       });
   }, [documentId]);
 
+  // Guides are only readable by Premium members (RLS), so wait for the plan.
   useEffect(() => {
+    if (!isPremium) {
+      return;
+    }
+
     load();
 
     return () => {
       requestIdRef.current += 1;
     };
-  }, [load]);
+  }, [isPremium, load]);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && isPremium) {
       void hydrateSavedForUser(userId);
     }
-  }, [hydrateSavedForUser, userId]);
+  }, [hydrateSavedForUser, isPremium, userId]);
 
   const toggleSaved = () => {
     if (!document) {
@@ -110,6 +118,11 @@ export function DocumentScreen() {
 
     if (!userId) {
       Alert.alert("Log in required", "Please log in to save guides.");
+      return;
+    }
+
+    if (!isPremium) {
+      showPremiumRequired("save");
       return;
     }
 
@@ -198,9 +211,13 @@ export function DocumentScreen() {
       }
       contentContainerStyle={styles.content}
     >
-      {isLoading ? <DocumentSkeleton /> : null}
+      {planStatus === "free" ? (
+        <PaywallCard feature="document" onBack={() => router.back()} />
+      ) : null}
 
-      {!isLoading && error ? (
+      {planStatus === "unknown" || (isPremium && isLoading) ? <DocumentSkeleton /> : null}
+
+      {isPremium && !isLoading && error ? (
         <ErrorState
           title={error}
           message="Please go back and open the guide again."
@@ -209,7 +226,7 @@ export function DocumentScreen() {
         />
       ) : null}
 
-      {!isLoading && document ? (
+      {isPremium && !isLoading && document ? (
         <>
           <Entrance index={0}>
             <HeroCard>

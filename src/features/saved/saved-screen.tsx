@@ -11,6 +11,8 @@ import { Screen } from "@/components/ui/screen";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/state-views";
 import { TabScreen } from "@/components/ui/tab-screen";
 import { Layout, Spacing } from "@/constants/theme";
+import { PaywallCard } from "@/features/billing/paywall-card";
+import { usePremiumGate } from "@/features/billing/premium-gate";
 import { SavedCard } from "@/features/saved/saved-card";
 import {
   filterSavedItems,
@@ -32,6 +34,7 @@ const filterOptions: readonly FilterOption<SavedFilter>[] = [
 export function SavedScreen() {
   const router = useRouter();
   const { userId } = useAuth();
+  const { planStatus, isPremium } = usePremiumGate();
   const countries = useSavedStore((state) => state.countries);
   const documents = useSavedStore((state) => state.documents);
   const status = useSavedStore((state) => state.status);
@@ -61,13 +64,13 @@ export function SavedScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!userId) {
+      if (!userId || !isPremium) {
         resetSavedStore();
         return;
       }
 
       void hydrateForUser(userId);
-    }, [hydrateForUser, resetSavedStore, userId]),
+    }, [hydrateForUser, isPremium, resetSavedStore, userId]),
   );
 
   const openItem = useCallback(
@@ -142,7 +145,9 @@ export function SavedScreen() {
     </View>
   );
 
-  const listEmpty = isLoading ? (
+  const listEmpty = planStatus === "free" ? (
+    <PaywallCard feature="save" compact />
+  ) : planStatus === "unknown" || isLoading ? (
     <LoadingState label="Loading saved guides…" />
   ) : hasError ? (
     <ErrorState

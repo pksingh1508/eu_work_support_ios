@@ -1,5 +1,5 @@
 type ClerkErrorLike = {
-  errors?: Array<{ code?: string; message?: string; longMessage?: string }>;
+  errors?: { code?: string; message?: string; longMessage?: string }[];
   message?: string;
 };
 

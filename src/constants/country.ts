@@ -217,6 +217,15 @@ export function getCountrySlug(country: string) {
     .replace(/^-|-$/g, "");
 }
 
+const countryNameBySlug = new Map<string, CountryName>(
+  europeanCountryNames.map((name) => [getCountrySlug(name), name]),
+);
+
+/** Display name for a slug when the country is one we ship offline. */
+export function getCountryNameBySlug(slug: string | null | undefined) {
+  return slug ? (countryNameBySlug.get(slug) ?? null) : null;
+}
+
 const countryCodeBySlug = new Map<string, string>(
   europeanCountryNames.map((name) => [
     getCountrySlug(name),

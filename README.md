@@ -110,24 +110,6 @@ EXPO_PUBLIC_CLERK_SUPABASE_JWT_TEMPLATE=
 
 # OneSignal
 EXPO_PUBLIC_ONESIGNAL_APP_ID=
-
-# Website email endpoint API key
-EXPO_PUBLIC_X_API_KEY=
-```
-
-The app sends verification email requests to:
-
-```text
-https://euworksupport.eu/api/send-payment-link
-```
-
-The request body is:
-
-```json
-{
-  "email": "user@example.com",
-  "name": "Welcome"
-}
 ```
 
 ## Run the App
@@ -173,11 +155,14 @@ pnpm lint           # Run Expo lint
 The app separates authentication from content access.
 
 1. Users can browse the home tab without logging in.
-2. Premium screens are wrapped with a reusable premium guard.
-3. The login screen checks Supabase through `is_email_pro_user` before creating a Clerk session.
-4. If the email is not verified as PRO, the user is sent to the verify screen.
-5. The verify screen checks whether the email is already PRO before sending a verification email.
-6. Signed-in PRO users can complete onboarding and access protected screens.
+2. Premium screens are wrapped with a reusable premium guard that offers **Log in** and **Sign up**.
+3. Login uses Clerk email + password (with optional email / SMS second factor).
+4. Sign-up collects optional first and last name, email and password, then verifies the email with a 6-digit Clerk code before the session is activated.
+5. After sign-up the app calls `ensure_user_profile` and stores the names in `app_users`, so the profile screen shows them straight away.
+6. Content access is decided by the Supabase profile's `user_plan`:
+   - `Free` members see a Free-plan message with a **Buy Premium** button on country pages, guide pages, the Saved tab and any save action.
+   - `PRO` members get everything.
+7. The **Billing** tab sells Premium as a one-time purchase (USD 59, lifetime access) through RevenueCat / App Store In-App Purchase. After a purchase the app polls the profile until the RevenueCat webhook flips `user_plan` to `PRO`.
 
 The shared access state lives in:
 
@@ -199,18 +184,15 @@ The client expects Supabase to provide:
 - An `app_users` table with Clerk user identity data.
 - A `user_plan` value that resolves to `PRO` for verified premium users.
 - An `ensure_user_profile()` RPC used after sign-in to create or load the user's profile row.
-- An `is_email_pro_user(p_email text)` RPC used before login and before sending verification email.
 - RLS policies that keep premium data available only to verified PRO users.
-
-If login verification always fails, confirm that `is_email_pro_user` exists in Supabase and grants execute access to both `anon` and `authenticated` roles.
 
 ## Key Implementation Files
 
 - `src/components/app-providers.tsx` wires Clerk, Supabase token bridging, theme providers, auth access, and the root auth gate.
-- `src/features/auth/components/auth-switcher.tsx` owns the login form and pre-login PRO check.
-- `src/app/(auth)/verify.tsx` owns the verification page and email request flow.
-- `src/lib/send-website-payment-link.ts` sends the website verification email request.
-- `src/lib/pro-account.ts` calls the public Supabase PRO email check.
+- `src/app/(auth)/sign-in.tsx` owns the login form (password + optional second factor).
+- `src/app/(auth)/sign-up.tsx` owns account creation and email code verification.
+- `src/features/auth/components/unauthenticated.tsx` is the logged-out card with the Log in / Sign up buttons.
+- `src/features/billing/` holds the Billing tab, the Free-plan paywall card, the `usePremiumGate` hook and the RevenueCat wrapper (`purchases.ts`).
 - `src/components/home-demo.tsx` renders the public home tab and hides saved-data calls for non-PRO users.
 
 ## Design Notes
@@ -236,17 +218,13 @@ The app-specific Keychain access group is configured in `app.json`. Regenerate t
 
 Keep code signing enabled for simulator builds. If building locally without an Apple development certificate, use simulator ad-hoc signing with `xcodebuild -sdk iphonesimulator CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES` together with the workspace, scheme, and simulator destination. Do not use `CODE_SIGNING_ALLOWED=NO` to work around certificate errors: that can leave Keychain unavailable.
 
-### Login Redirects to Verify
+### Buy Premium Says Purchases Are Unavailable
 
-This is expected when `is_email_pro_user(email)` returns `false`. Verify that the email exists in Supabase and its `user_plan` is `PRO`.
+`EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` (and the Android key) must be set, the app must be rebuilt after adding `react-native-purchases`, and the RevenueCat project needs a current offering with a lifetime package (`$rc_lifetime`) mapped to the App Store non-consumable product. The entitlement identifier must be `premium`.
 
-### Verification Email Does Not Send
+### Sign-up Code Never Arrives
 
-Check:
-
-- `EXPO_PUBLIC_X_API_KEY` is set.
-- The website endpoint is reachable.
-- The endpoint accepts the request body `{ email, name: "Welcome" }`.
+Clerk sends the 6-digit code from the instance's email provider. Check the Clerk dashboard's email settings and the user's spam folder; the app offers a resend after a 30-second cooldown.
 
 ### Premium Screens Show the Access Prompt
 

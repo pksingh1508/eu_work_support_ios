@@ -90,6 +90,13 @@ export function ProfileScreen() {
               onPress={go("/profile/account")}
             />
             <ListRow
+              icon="crown"
+              iconTone={isPro ? "success" : "tertiary"}
+              title="Premium"
+              subtitle={isPro ? "Lifetime access active" : "Unlock everything · $59 one-time"}
+              onPress={go("/billing")}
+            />
+            <ListRow
               icon="settings"
               title="Settings"
               subtitle="Appearance and notifications"

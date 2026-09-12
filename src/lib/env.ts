@@ -7,6 +7,8 @@ type RequiredPublicEnv = {
 
 type OptionalPublicEnv = {
   clerkSupabaseJwtTemplate?: string;
+  revenueCatIosApiKey?: string;
+  revenueCatAndroidApiKey?: string;
 };
 
 const requiredEnv = {
@@ -33,4 +35,7 @@ export const env = requiredEnv as RequiredPublicEnv;
 export const optionalEnv: OptionalPublicEnv = {
   clerkSupabaseJwtTemplate:
     process.env.EXPO_PUBLIC_CLERK_SUPABASE_JWT_TEMPLATE || undefined,
+  revenueCatIosApiKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || undefined,
+  revenueCatAndroidApiKey:
+    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || undefined,
 };

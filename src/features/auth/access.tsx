@@ -18,6 +18,12 @@ import { supabase } from "@/lib/supabase";
 
 export type UserPlan = "Free" | "PRO";
 
+/**
+ * `unknown` while Clerk or the Supabase profile is still loading, so screens
+ * can show a skeleton instead of flashing the paywall at Premium members.
+ */
+export type PlanStatus = "unknown" | "free" | "pro";
+
 export type AuthAccessProfile = {
   userId: string;
   email: string | null;
@@ -34,6 +40,8 @@ export type AuthAccessContextValue = {
   userId: string | null | undefined;
   profile: AuthAccessProfile | null;
   userPlan: UserPlan | null;
+  planStatus: PlanStatus;
+  /** True only for members whose Supabase profile says `PRO`. */
   hasPremiumAccess: boolean;
   isProfileLoading: boolean;
   refreshProfile: () => Promise<AuthAccessProfile | null>;
@@ -176,6 +184,15 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
   const activeProfile = userId && profile?.userId === userId ? profile : null;
   const userPlan = activeProfile?.userPlan ?? null;
   const shouldWaitForProfile = Boolean(isSignedIn) && !activeProfile;
+  const planStatus: PlanStatus = !isLoaded
+    ? "unknown"
+    : !isSignedIn
+      ? "free"
+      : !activeProfile
+        ? "unknown"
+        : userPlan === "PRO"
+          ? "pro"
+          : "free";
 
   const value = useMemo(
     () => ({
@@ -184,7 +201,8 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
       userId,
       profile: activeProfile,
       userPlan,
-      hasPremiumAccess: Boolean(isSignedIn),
+      planStatus,
+      hasPremiumAccess: planStatus === "pro",
       isProfileLoading: isProfileLoading || shouldWaitForProfile,
       refreshProfile,
     }),
@@ -194,6 +212,7 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
       userId,
       activeProfile,
       userPlan,
+      planStatus,
       isProfileLoading,
       shouldWaitForProfile,
       refreshProfile,

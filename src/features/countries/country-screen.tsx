@@ -20,7 +20,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/state-views";
 import { Surface } from "@/components/ui/surface";
-import { getCountryCodeBySlug } from "@/constants/country";
+import { getCountryCodeBySlug, getCountryNameBySlug } from "@/constants/country";
 import { Radii, Spacing } from "@/constants/theme";
 import { CountryDocumentRow } from "@/features/countries/country-document-row";
 import {
@@ -29,6 +29,8 @@ import {
   type CountryDocument,
 } from "@/features/countries/country-service";
 import { DocumentSheet } from "@/features/countries/document-sheet";
+import { PaywallCard } from "@/features/billing/paywall-card";
+import { usePremiumGate } from "@/features/billing/premium-gate";
 import { useIsCountrySaved, useSavedStore } from "@/features/saved/saved-store";
 import { useTheme } from "@/hooks/use-theme";
 import { formatLongDate } from "@/lib/format";
@@ -44,6 +46,8 @@ export function CountryScreen() {
   const { userId } = useAuth();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const countrySlug = Array.isArray(slug) ? slug[0] : slug;
+  const { planStatus, isPremium, showPremiumRequired } = usePremiumGate();
+  const offlineCountryName = getCountryNameBySlug(countrySlug);
   const requestIdRef = useRef(0);
   const [country, setCountry] = useState<Country | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<CountryDocument | null>(null);
@@ -98,19 +102,25 @@ export function CountryScreen() {
       });
   }, [countrySlug]);
 
+  // Country rows are only readable by Premium members (RLS), so do not fetch
+  // until the plan is known and allows it.
   useEffect(() => {
+    if (!isPremium) {
+      return;
+    }
+
     load();
 
     return () => {
       requestIdRef.current += 1;
     };
-  }, [load]);
+  }, [isPremium, load]);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && isPremium) {
       void hydrateSavedForUser(userId);
     }
-  }, [hydrateSavedForUser, userId]);
+  }, [hydrateSavedForUser, isPremium, userId]);
 
   const categories = useMemo(
     () =>
@@ -135,6 +145,11 @@ export function CountryScreen() {
 
     if (!userId) {
       Alert.alert("Log in required", "Please log in to save countries.");
+      return;
+    }
+
+    if (!isPremium) {
+      showPremiumRequired("save");
       return;
     }
 
@@ -207,7 +222,7 @@ export function CountryScreen() {
       header={
         <ScreenHeader
           padded
-          title={country?.name ?? "Country"}
+          title={country?.name ?? offlineCountryName ?? "Country"}
           right={
             <View style={styles.headerActions}>
               <IconButton
@@ -228,9 +243,17 @@ export function CountryScreen() {
       }
       contentContainerStyle={styles.content}
     >
-      {isLoading ? <CountrySkeleton /> : null}
+      {planStatus === "free" ? (
+        <PaywallCard
+          feature="country"
+          subject={offlineCountryName}
+          onBack={() => router.back()}
+        />
+      ) : null}
 
-      {!isLoading && error ? (
+      {planStatus === "unknown" || (isPremium && isLoading) ? <CountrySkeleton /> : null}
+
+      {isPremium && !isLoading && error ? (
         <ErrorState
           title={error}
           message="Check your connection and try again."
@@ -239,7 +262,7 @@ export function CountryScreen() {
         />
       ) : null}
 
-      {!isLoading && country ? (
+      {isPremium && !isLoading && country ? (
         <>
           <Entrance index={0}>
             <HeroCard>

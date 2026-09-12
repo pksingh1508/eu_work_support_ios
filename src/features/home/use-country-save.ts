@@ -3,6 +3,8 @@ import { useCallback, useRef, useState } from "react";
 
 import { countryDetails, getCountrySlug, type CountryName } from "@/constants/country";
 import { useAuthAccess } from "@/features/auth/access";
+import { authHref } from "@/features/auth/return-to";
+import { usePremiumGate } from "@/features/billing/premium-gate";
 import { useSavedCountrySlugs, useSavedStore } from "@/features/saved/saved-store";
 import { haptic } from "@/lib/haptics";
 import { fetchCountryIdBySlug } from "@/lib/saved-items";
@@ -14,7 +16,8 @@ import { showErrorToast, showSavedToast, showUnsavedToast } from "@/lib/toast";
  */
 export function useCountrySave() {
   const router = useRouter();
-  const { hasPremiumAccess, userId } = useAuthAccess();
+  const { userId } = useAuthAccess();
+  const { planStatus, showPremiumRequired } = usePremiumGate();
   const savedCountrySlugs = useSavedCountrySlugs();
   const pendingMutations = useSavedStore((state) => state.pendingMutations);
   const saveCountryOptimistic = useSavedStore(
@@ -26,12 +29,21 @@ export function useCountrySave() {
   const countryIdsBySlugRef = useRef<Record<string, string>>({});
   const [resolvingSlug, setResolvingSlug] = useState<string | null>(null);
 
-  const canSave = hasPremiumAccess && Boolean(userId);
+  // The bookmark stays visible for every signed-in member; Free-plan taps
+  // get the upgrade prompt instead of a failed request.
+  const canSave = Boolean(userId);
 
   const toggleSave = useCallback(
     async (country: CountryName) => {
-      if (!hasPremiumAccess || !userId) {
-        router.push("/saved");
+      if (!userId) {
+        router.push(authHref("/sign-in", "/"));
+        return;
+      }
+
+      if (planStatus !== "pro") {
+        if (planStatus === "free") {
+          showPremiumRequired("save", country);
+        }
         return;
       }
 
@@ -96,10 +108,11 @@ export function useCountrySave() {
       }
     },
     [
-      hasPremiumAccess,
+      planStatus,
       router,
       saveCountryOptimistic,
       savedCountrySlugs,
+      showPremiumRequired,
       unsaveCountryOptimistic,
       userId,
     ],

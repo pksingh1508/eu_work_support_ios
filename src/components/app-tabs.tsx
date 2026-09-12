@@ -66,6 +66,14 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Saved</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="billing">
+        <NativeTabs.Trigger.Icon
+          md="workspace_premium"
+          sf={{ default: "crown", selected: "crown.fill" }}
+        />
+        <NativeTabs.Trigger.Label>Billing</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Icon
           md="person"
