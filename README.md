@@ -160,7 +160,7 @@ The app separates authentication from content access.
 4. Sign-up collects optional first and last name, email and password, then verifies the email with a 6-digit Clerk code before the session is activated.
 5. After sign-up the app calls `ensure_user_profile` and stores the names in `app_users`, so the profile screen shows them straight away.
 6. Content access is decided by the Supabase profile's `user_plan`:
-   - `Free` members see a Free-plan message with a **Buy Premium** button on country pages, guide pages, the Saved tab and any save action.
+   - `Free` members see a Free-plan message with a **Buy Premium** button on country pages, guide pages, the Search and Saved tabs and any save action.
    - `PRO` members get everything.
 7. The **Billing** tab sells Premium as a one-time purchase (USD 59, lifetime access) through RevenueCat / App Store In-App Purchase. After a purchase the app polls the profile until the RevenueCat webhook flips `user_plan` to `PRO`.
 

@@ -7,9 +7,11 @@ import { Entrance } from "@/components/ui/entrance";
 import { Screen } from "@/components/ui/screen";
 import { SearchField } from "@/components/ui/search-field";
 import { SkeletonCard } from "@/components/ui/skeleton";
-import { EmptyState, ErrorState } from "@/components/ui/state-views";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/state-views";
 import { TabScreen } from "@/components/ui/tab-screen";
 import { Spacing } from "@/constants/theme";
+import { PaywallCard } from "@/features/billing/paywall-card";
+import { usePremiumGate } from "@/features/billing/premium-gate";
 import { SearchResultCard } from "@/features/search/search-result-card";
 import {
   addRecentSearch,
@@ -27,6 +29,7 @@ const SKELETON_COUNT = 3;
 
 export function SearchScreen() {
   const router = useRouter();
+  const { planStatus, isPremium } = usePremiumGate();
   const inputRef = useRef<TextInput>(null);
   const requestIdRef = useRef(0);
   const [query, setQuery] = useState("");
@@ -36,7 +39,8 @@ export function SearchScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const shouldSearch = debouncedQuery.length >= MIN_SEARCH_LENGTH;
+  // Search is a Premium feature: never hit Supabase for Free members.
+  const shouldSearch = isPremium && debouncedQuery.length >= MIN_SEARCH_LENGTH;
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -131,18 +135,28 @@ export function SearchScreen() {
           </AppText>
         </Entrance>
 
-        <Entrance from="none" delay={60} style={styles.field}>
-          <SearchField
-            mode="input"
-            value={query}
-            onChangeText={setQuery}
-            onSubmit={() => submitSearch()}
-            onClear={clearSearch}
-            inputRef={inputRef}
-          />
-        </Entrance>
+        {planStatus === "free" ? (
+          <PaywallCard feature="search" style={styles.field} />
+        ) : null}
 
-        {!shouldSearch ? (
+        {planStatus === "unknown" ? (
+          <LoadingState label="Checking your plan…" style={styles.field} />
+        ) : null}
+
+        {isPremium ? (
+          <Entrance from="none" delay={60} style={styles.field}>
+            <SearchField
+              mode="input"
+              value={query}
+              onChangeText={setQuery}
+              onSubmit={() => submitSearch()}
+              onClear={clearSearch}
+              inputRef={inputRef}
+            />
+          </Entrance>
+        ) : null}
+
+        {!isPremium ? null : !shouldSearch ? (
           <SearchSuggestions
             recentSearches={recentSearches}
             onSelect={submitSearch}
