@@ -166,7 +166,10 @@ What is already in the repo:
 
    Without the iOS key the Billing tab still renders, but "Buy Premium" shows
    the "Purchases unavailable" alert. This is intentional so a misconfigured
-   build never crashes.
+   build never crashes. Keys that do not look like RevenueCat public keys
+   (`appl_…`, `goog_…`, or `test_…` for the RevenueCat Test Store) are ignored
+   with a console warning; the `pk_test…` placeholders currently in `.env`
+   must be replaced.
 2. **Rebuild the native app.** `react-native-purchases` is a native module, so
    Expo Go cannot run this app and every existing dev client must be rebuilt:
 
@@ -236,7 +239,8 @@ key. No app code changes are needed.
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| "Purchases unavailable" alert | `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` missing or the app was not rebuilt | Set the key, rebuild the dev client |
+| "Purchases unavailable" alert | `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` missing, not an `appl_…` key, or the app was not rebuilt | Set the real public key, rebuild the dev client |
+| Red "[RevenueCat] There was a credential issue" box in development | The key is present but rejected by RevenueCat (wrong project or a secret key) | Copy the *public app-specific* key from Project settings → API keys |
 | "The Premium product is not available right now" | Paid Apps agreement not active, product not *Ready to Submit*, or product not attached to the RevenueCat offering | Check App Store Connect status, then the RevenueCat offering |
 | Purchase succeeds but the app still says Free | Webhook not reaching Supabase, wrong secret, or event is `SANDBOX` in production | RevenueCat → Webhooks → check delivery log and response code; use *Send test event* |
 | Webhook returns 401 | Authorization header does not match `REVENUECAT_WEBHOOK_SECRET` | Re-set the secret on both sides |

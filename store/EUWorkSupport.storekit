@@ -1,0 +1,38 @@
+{
+  "identifier" : "52D29B79-5A88-4EB6-893C-D9ABB01E5A78",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "59.00",
+      "familyShareable" : false,
+      "internalID" : "1000000001",
+      "localizations" : [
+        {
+          "description" : "Lifetime access to every country guide and document.",
+          "displayName" : "EU Work Support Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "eu_work_support_premium_lifetime",
+      "referenceName" : "Premium (Lifetime)",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

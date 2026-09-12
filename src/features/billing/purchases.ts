@@ -56,12 +56,33 @@ const onCustomerInfoUpdate: CustomerInfoUpdateListener = (customerInfo) => {
   usePurchasesStore.getState().setCustomerInfo(customerInfo);
 };
 
+/** RevenueCat public SDK keys: `appl_` (App Store), `goog_` (Play), `test_` (Test Store). */
+const API_KEY_PATTERN = /^(appl|goog|test)_[A-Za-z0-9]{10,}$/;
+let hasWarnedAboutKey = false;
+
 function getApiKey() {
-  return Platform.select({
+  const candidate = Platform.select({
     ios: optionalEnv.revenueCatIosApiKey,
     android: optionalEnv.revenueCatAndroidApiKey,
     default: undefined,
   });
+
+  if (!candidate) {
+    return undefined;
+  }
+
+  if (!API_KEY_PATTERN.test(candidate)) {
+    if (__DEV__ && !hasWarnedAboutKey) {
+      hasWarnedAboutKey = true;
+      console.warn(
+        "Ignoring EXPO_PUBLIC_REVENUECAT_*_API_KEY: expected a RevenueCat public key (appl_… / goog_… / test_…). Purchases are disabled.",
+      );
+    }
+
+    return undefined;
+  }
+
+  return candidate;
 }
 
 /** True when a RevenueCat key exists for this platform. */
