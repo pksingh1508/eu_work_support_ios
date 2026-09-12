@@ -1,99 +1,106 @@
 import {
-  Tabs,
   TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
   TabListProps,
-} from 'expo-router/ui';
-import React from 'react';
-import { Pressable, View, StyleSheet } from 'react-native';
+  TabSlot,
+  TabTrigger,
+  TabTriggerSlotProps,
+  Tabs,
+} from "expo-router/ui";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
-
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppText } from "@/components/ui/app-text";
+import { Layout, Radii, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 
 export default function AppTabs() {
   return (
     <Tabs>
-      <TabSlot style={{ height: '100%' }} />
+      <TabSlot style={styles.slot} />
       <TabList asChild>
-        <CustomTabList>
+        <WebTabList>
           <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
+            <WebTabButton>Home</WebTabButton>
           </TabTrigger>
           <TabTrigger name="search" href="/search" asChild>
-            <TabButton>Search</TabButton>
+            <WebTabButton>Search</WebTabButton>
           </TabTrigger>
           <TabTrigger name="saved" href="/saved" asChild>
-            <TabButton>Saved</TabButton>
+            <WebTabButton>Saved</WebTabButton>
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
-            <TabButton>Profile</TabButton>
+            <WebTabButton>Profile</WebTabButton>
           </TabTrigger>
-        </CustomTabList>
+        </WebTabList>
       </TabList>
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+function WebTabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+  const { colors } = useTheme();
+
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+    <Pressable {...props} style={({ pressed }) => (pressed ? styles.pressed : null)}>
+      <View
+        style={[
+          styles.tabButton,
+          { backgroundColor: isFocused ? colors.surfaceHigh : "transparent" },
+        ]}
+      >
+        <AppText variant="label" color={isFocused ? "primary" : "textSecondary"}>
           {children}
-        </ThemedText>
-      </ThemedView>
+        </AppText>
+      </View>
     </Pressable>
   );
 }
 
-export function CustomTabList(props: TabListProps) {
+function WebTabList(props: TabListProps) {
+  const { colors } = useTheme();
+
   return (
     <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
+      <View style={[styles.innerContainer, { backgroundColor: colors.surfaceLowest }]}>
+        <AppText variant="label" style={styles.brandText}>
           EU Work Support
-        </ThemedText>
-
+        </AppText>
         {props.children}
-      </ThemedView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  slot: {
+    height: "100%",
+  },
   tabListContainer: {
-    position: 'absolute',
-    width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
+    position: "absolute",
+    width: "100%",
+    padding: Spacing.lg,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
   },
   innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radii.pill,
+    flexDirection: "row",
+    alignItems: "center",
     flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
+    gap: Spacing.sm,
+    maxWidth: Layout.contentMaxWidth,
   },
   brandText: {
-    marginRight: 'auto',
+    marginRight: "auto",
   },
   pressed: {
     opacity: 0.7,
   },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+  tabButton: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.pill,
   },
 });

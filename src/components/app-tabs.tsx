@@ -1,71 +1,75 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import React from 'react';
-import { Platform, useColorScheme } from 'react-native';
+import { isLiquidGlassAvailable } from "expo-glass-effect";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { Platform } from "react-native";
 
-import { Colors } from '@/constants/theme';
+import { useTheme } from "@/hooks/use-theme";
+import { FontFamily } from "@/lib/fonts";
 
+const hasLiquidGlass = Platform.OS === "ios" && isLiquidGlassAvailable();
+
+/**
+ * Native bottom tabs (UITabBarController on iOS). On iOS 26 the bar is
+ * Liquid Glass, minimises while scrolling and exposes the system search
+ * tab; older systems get a chrome-material blur.
+ */
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const themeName = scheme === 'dark' ? 'dark' : 'light';
-  const colors = Colors[themeName];
-  const iconColor = {
-    default: colors.textSecondary,
-    selected: colors.primary,
-  };
-  const labelStyle = {
-    default: {
-      color: colors.textSecondary,
-      fontSize: Platform.select({ android: 12, default: 11 }),
-      fontWeight: '600' as const,
-    },
-    selected: {
-      color: colors.text,
-      fontSize: Platform.select({ android: 12, default: 11 }),
-      fontWeight: '700' as const,
-    },
-  };
+  const { colors, isDark } = useTheme();
 
   return (
     <NativeTabs
-      backgroundColor={colors.surfaceLowest}
-      blurEffect={themeName === 'dark' ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
-      disableTransparentOnScrollEdge
-      iconColor={iconColor}
-      indicatorColor={colors.backgroundSelected}
-      labelStyle={labelStyle}
+      minimizeBehavior="onScrollDown"
+      tintColor={colors.primary}
+      iconColor={{ default: colors.textTertiary, selected: colors.primary }}
+      labelStyle={{
+        default: {
+          fontFamily: FontFamily.bodyMedium,
+          fontSize: 11,
+          color: colors.textTertiary,
+        },
+        selected: {
+          fontFamily: FontFamily.bodySemiBold,
+          fontSize: 11,
+          color: colors.primary,
+        },
+      }}
+      badgeBackgroundColor={colors.tertiary}
+      backgroundColor={hasLiquidGlass ? undefined : colors.tabBarBackground}
+      blurEffect={
+        hasLiquidGlass
+          ? undefined
+          : isDark
+            ? "systemChromeMaterialDark"
+            : "systemChromeMaterialLight"
+      }
+      rippleColor={colors.primarySoft}
+      indicatorColor={colors.primarySoft}
       labelVisibilityMode="labeled"
-      rippleColor={colors.backgroundSelected}
-      shadowColor={colors.outlineVariant}
-      tintColor={colors.primary}>
-      <NativeTabs.Trigger
-        name="index"
-        contentStyle={{ backgroundColor: '#D6E8FF' }}
-        disableAutomaticContentInsets
-        disableTransparentOnScrollEdge>
+    >
+      <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Icon
           md="home"
-          sf={{ default: 'house', selected: 'house.fill' }}
+          sf={{ default: "house", selected: "house.fill" }}
         />
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="search" disableTransparentOnScrollEdge>
+      <NativeTabs.Trigger name="search" role="search">
         <NativeTabs.Trigger.Icon md="search" sf="magnifyingglass" />
         <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="saved" disableTransparentOnScrollEdge>
+      <NativeTabs.Trigger name="saved">
         <NativeTabs.Trigger.Icon
           md="bookmark"
-          sf={{ default: 'bookmark', selected: 'bookmark.fill' }}
+          sf={{ default: "bookmark", selected: "bookmark.fill" }}
         />
         <NativeTabs.Trigger.Label>Saved</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="profile" disableTransparentOnScrollEdge>
+      <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Icon
           md="person"
-          sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }}
+          sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }}
         />
         <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
