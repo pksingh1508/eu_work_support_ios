@@ -20,12 +20,6 @@ const publicClientOptions = {
   },
 } as const;
 
-export const publicSupabase = createClient(
-  env.supabaseUrl,
-  env.supabasePublishableKey,
-  publicClientOptions,
-);
-
 export const supabase = createClient(env.supabaseUrl, env.supabasePublishableKey, {
   ...publicClientOptions,
   accessToken: async () => clerkAccessTokenGetter(),

@@ -1,4 +1,4 @@
-import { usePathname, useRouter, type Href } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/ui/app-button";
@@ -8,6 +8,7 @@ import { IconBadge } from "@/components/ui/icon-badge";
 import { Screen } from "@/components/ui/screen";
 import { Surface } from "@/components/ui/surface";
 import { Spacing } from "@/constants/theme";
+import { authHref } from "@/features/auth/return-to";
 
 type UnAuthenticatedProps = {
   title?: string;
@@ -17,20 +18,12 @@ type UnAuthenticatedProps = {
 
 export function UnAuthenticated({
   title = "Log in to continue",
-  message = "Use the email associated with your EU Work Support account. Country guides, search and saved items are available to members.",
+  message = "Country guides, search and saved items are available to members. Log in or create a free account to get started.",
   returnTo,
 }: UnAuthenticatedProps) {
   const router = useRouter();
   const pathname = usePathname();
   const nextReturnTo = returnTo ?? pathname;
-
-  const openLogin = () => {
-    router.push({ pathname: "/sign-in", params: { returnTo: nextReturnTo } });
-  };
-
-  const openRequestAccess = () => {
-    router.push(`/verify?returnTo=${encodeURIComponent(nextReturnTo)}` as Href);
-  };
 
   return (
     <Screen contentContainerStyle={styles.center}>
@@ -44,12 +37,16 @@ export function UnAuthenticated({
             {message}
           </AppText>
           <View style={styles.actions}>
-            <AppButton label="Log in" icon="signIn" onPress={openLogin} />
             <AppButton
-              label="Request access"
-              icon="mail"
+              label="Log in"
+              icon="signIn"
+              onPress={() => router.push(authHref("/sign-in", nextReturnTo))}
+            />
+            <AppButton
+              label="Sign up"
+              icon="personAdd"
               variant="secondary"
-              onPress={openRequestAccess}
+              onPress={() => router.push(authHref("/sign-up", nextReturnTo))}
             />
           </View>
         </Surface>

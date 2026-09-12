@@ -3,7 +3,6 @@ type RequiredPublicEnv = {
   supabaseUrl: string;
   supabasePublishableKey: string;
   oneSignalAppId: string;
-  xApiKey: string;
 };
 
 type OptionalPublicEnv = {
@@ -17,7 +16,6 @@ const requiredEnv = {
     process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.EXPO_PUBLIC_SUPABASE_KEY,
   oneSignalAppId: process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID,
-  xApiKey: process.env.EXPO_PUBLIC_X_API_KEY,
 } satisfies Record<keyof RequiredPublicEnv, string | undefined>;
 
 const missingEnv = Object.entries(requiredEnv)

@@ -11,28 +11,13 @@ import { TextField } from "@/components/ui/text-field";
 import { Spacing } from "@/constants/theme";
 import { AuthLayout, AuthNotice } from "@/features/auth/components/auth-layout";
 import { getAuthErrorMessage } from "@/features/auth/errors";
-import { isEmailProUser } from "@/lib/pro-account";
+import { authHref, getSafeReturnTo } from "@/features/auth/return-to";
 import { showInfoToast } from "@/lib/toast";
+import { withTimeout } from "@/lib/with-timeout";
 
 const CLERK_SIGN_IN_TIMEOUT_MS = 20000;
 
 type SecondFactorMethod = "email_code" | "phone_code";
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(message));
-    }, timeoutMs);
-  });
-
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  });
-}
 
 export default function SignInScreen() {
   const { signIn } = useSignIn();
@@ -46,26 +31,9 @@ export default function SignInScreen() {
     useState<SecondFactorMethod | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const requestedReturnTo = Array.isArray(returnTo) ? returnTo[0] : returnTo;
-  const safeReturnTo =
-    requestedReturnTo &&
-    requestedReturnTo.startsWith("/") &&
-    !requestedReturnTo.startsWith("//") &&
-    requestedReturnTo !== "/sign-in"
-      ? requestedReturnTo
-      : "/";
-
-  const openVerifyPage = (emailOverride?: string) => {
-    const email = emailOverride ?? unverifiedEmail ?? emailAddress.trim();
-    router.push(
-      `/verify?email=${encodeURIComponent(email)}&returnTo=${encodeURIComponent(
-        safeReturnTo,
-      )}` as Href,
-    );
-  };
+  const safeReturnTo = getSafeReturnTo(returnTo);
 
   const finishSignIn = async () => {
     await signIn.finalize({
@@ -147,7 +115,6 @@ export default function SignInScreen() {
     }
 
     setError(null);
-    setUnverifiedEmail(null);
     setSecondFactorMethod(null);
     setSecondFactorCode("");
 
@@ -155,15 +122,6 @@ export default function SignInScreen() {
     setIsSubmitting(true);
 
     try {
-      const isVerified = await isEmailProUser(normalizedEmail);
-
-      if (!isVerified) {
-        showInfoToast("No active access", "Request access to continue.");
-        setUnverifiedEmail(normalizedEmail);
-        openVerifyPage(normalizedEmail);
-        return;
-      }
-
       const { error: signInError } = await withTimeout(
         signIn.password({ emailAddress: normalizedEmail, password }),
         CLERK_SIGN_IN_TIMEOUT_MS,
@@ -248,14 +206,6 @@ export default function SignInScreen() {
       subtitle="Log in to continue your country research, saved guides and more support."
       error={error}
     >
-      {unverifiedEmail ? (
-        <AuthNotice
-          tone="primary"
-          icon="info"
-          text="No active access was found for this email. Request access and we will email you the next steps."
-        />
-      ) : null}
-
       <TextField
         label="Email"
         icon="mail"
@@ -340,14 +290,21 @@ export default function SignInScreen() {
         />
       ) : null}
 
-      {unverifiedEmail ? (
-        <AppButton
-          label="Request access"
-          icon="mail"
-          variant="secondary"
-          onPress={() => openVerifyPage()}
-        />
-      ) : null}
+      <View style={styles.switchRow}>
+        <AppText variant="callout" color="textSecondary">
+          New to EU Work Support?
+        </AppText>
+        <PressableScale
+          onPress={() => router.replace(authHref("/sign-up", safeReturnTo))}
+          hitSlop={Spacing.sm}
+          accessibilityRole="link"
+          accessibilityLabel="Create an account"
+        >
+          <AppText variant="label" color="primary">
+            Create an account
+          </AppText>
+        </PressableScale>
+      </View>
     </AuthLayout>
   );
 }
@@ -356,5 +313,12 @@ const styles = StyleSheet.create({
   forgotRow: {
     alignItems: "flex-end",
     marginTop: -Spacing.sm,
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
   },
 });

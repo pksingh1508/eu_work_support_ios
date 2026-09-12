@@ -60,6 +60,7 @@ export const iconMap = {
     ion: "log-out-outline",
   },
   signIn: { sf: "person.badge.key", ion: "log-in-outline" },
+  personAdd: { sf: "person.badge.plus", ion: "person-add-outline" },
   edit: { sf: "pencil", ion: "create-outline" },
   help: { sf: "questionmark.circle", ion: "help-circle-outline" },
   support: { sf: "lifepreserver", ion: "chatbubbles-outline" },
