@@ -1,15 +1,11 @@
 import { useSignIn } from "@clerk/expo/legacy";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
 
-import {
-  AuthCard,
-  AuthPrimaryButton,
-  AuthTextField,
-} from "@/features/auth/components/auth-card";
+import { AppButton } from "@/components/ui/app-button";
+import { TextField } from "@/components/ui/text-field";
+import { AuthLayout, AuthNotice } from "@/features/auth/components/auth-layout";
 import { getAuthErrorMessage } from "@/features/auth/errors";
-import { goBack } from "expo-router/build/global-state/routing";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -17,7 +13,6 @@ export default function ForgotPasswordScreen() {
   const [emailAddress, setEmailAddress] = useState("");
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [hasSentCode, setHasSentCode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -78,19 +73,23 @@ export default function ForgotPasswordScreen() {
 
       setError("Password reset needs another step before it can finish.");
     } catch (authError) {
-      setError(
-        getAuthErrorMessage(
-          authError,
-          "Unable to reset password with that code.",
-        ),
-      );
+      setError(getAuthErrorMessage(authError, "Unable to reset password with that code."));
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const useDifferentEmail = () => {
+    setHasSentCode(false);
+    setResetCode("");
+    setNewPassword("");
+    setNotice(null);
+    setError(null);
+  };
+
   return (
-    <AuthCard
+    <AuthLayout
+      headerTitle="Reset password"
       title={hasSentCode ? "Check your email" : "Reset password"}
       subtitle={
         hasSentCode
@@ -99,16 +98,10 @@ export default function ForgotPasswordScreen() {
       }
       error={error}
     >
-      {notice ? (
-        <View className="rounded-[18px] bg-[#EEF7FF] px-4 py-3">
-          <Text className="text-sm font-semibold tracking-normal text-[#202124]">
-            {notice}
-          </Text>
-        </View>
-      ) : null}
+      {notice ? <AuthNotice tone="primary" icon="mail" text={notice} /> : null}
 
-      <AuthTextField
-        label="Email Address"
+      <TextField
+        label="Email address"
         icon="mail"
         value={emailAddress}
         onChangeText={setEmailAddress}
@@ -118,13 +111,15 @@ export default function ForgotPasswordScreen() {
         keyboardType="email-address"
         placeholder="name@example.com"
         textContentType="emailAddress"
+        returnKeyType="send"
+        onSubmitEditing={hasSentCode ? undefined : sendResetCode}
       />
 
       {hasSentCode ? (
         <>
-          <AuthTextField
-            label="Reset Code"
-            icon="code"
+          <TextField
+            label="Reset code"
+            icon="keypad"
             value={resetCode}
             onChangeText={setResetCode}
             autoCapitalize="none"
@@ -134,58 +129,52 @@ export default function ForgotPasswordScreen() {
             textContentType="oneTimeCode"
           />
 
-          <AuthTextField
-            label="New Password"
+          <TextField
+            label="New password"
             icon="lock"
-            actionLabel={isPasswordVisible ? "Hide" : "Show"}
-            onActionPress={() => setIsPasswordVisible((current) => !current)}
+            secureToggle
             value={newPassword}
             onChangeText={setNewPassword}
             autoCapitalize="none"
             autoComplete="new-password"
             placeholder="New password"
-            secureTextEntry={!isPasswordVisible}
             textContentType="newPassword"
+            returnKeyType="go"
+            onSubmitEditing={resetPassword}
           />
 
-          <AuthPrimaryButton
-            label="Reset Password"
-            isLoading={isSubmitting}
+          <AppButton
+            label="Reset password"
+            icon="key"
+            loading={isSubmitting}
             disabled={!resetCode.trim() || !newPassword}
             onPress={resetPassword}
           />
 
-          <Pressable
-            onPress={() => {
-              setHasSentCode(false);
-              setResetCode("");
-              setNewPassword("");
-              setNotice(null);
-              setError(null);
-            }}
+          <AppButton
+            label="Use a different email"
+            variant="ghost"
+            size="md"
             disabled={isSubmitting}
-            className="items-center"
-            hitSlop={10}
-          >
-            <Text className="text-sm font-bold tracking-normal text-diplomatic-primary">
-              Use a different email
-            </Text>
-          </Pressable>
+            onPress={useDifferentEmail}
+          />
         </>
       ) : (
-        <AuthPrimaryButton
-          label="Send Reset Code"
-          isLoading={isSubmitting}
+        <AppButton
+          label="Send reset code"
+          icon="mail"
+          loading={isSubmitting}
           disabled={!emailAddress.trim()}
           onPress={sendResetCode}
         />
       )}
 
-      <Pressable className="items-center" hitSlop={10} onPress={goBack}>
-        <Text className="text-sm font-bold tracking-normal text-diplomatic-primary">
-          Back to login
-        </Text>
-      </Pressable>
-    </AuthCard>
+      <AppButton
+        label="Back to log in"
+        variant="ghost"
+        size="md"
+        onPress={() => router.back()}
+      />
+    </AuthLayout>
   );
 }

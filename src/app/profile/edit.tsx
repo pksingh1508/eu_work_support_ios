@@ -1,21 +1,21 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, View } from "react-native";
 
-import { CustomLoading } from "@/components/custom-loading";
+import { AppButton } from "@/components/ui/app-button";
+import { AppText } from "@/components/ui/app-text";
+import { Entrance } from "@/components/ui/entrance";
+import { Screen } from "@/components/ui/screen";
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Surface } from "@/components/ui/surface";
+import { TextField } from "@/components/ui/text-field";
+import { Spacing } from "@/constants/theme";
 import { useAuthAccess } from "@/features/auth/access";
+import { AuthNotice } from "@/features/auth/components/auth-layout";
 import { PremiumGuard } from "@/features/auth/components/premium-guard";
+import { haptic } from "@/lib/haptics";
 import { supabase } from "@/lib/supabase";
 
 type EditableProfile = {
@@ -122,9 +122,11 @@ function EditProfileContent() {
       }
 
       await refreshProfile();
+      haptic.success();
       router.back();
     } catch (updateError) {
       console.warn("Unable to update profile", updateError);
+      haptic.error();
       setError("Unable to update your profile. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -132,135 +134,85 @@ function EditProfileContent() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-[#FAFAFB]">
-      <KeyboardAvoidingView
-        behavior={Platform.select({ ios: "padding", default: undefined })}
-        className="flex-1"
-      >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          className="flex-1"
-          contentContainerClassName="px-5 pb-10 pt-7"
-          showsVerticalScrollIndicator={false}
-        >
-          <Header title="Edit Profile" onBack={() => router.back()} />
+    <Screen scroll keyboard header={<ScreenHeader padded title="Edit profile" />}>
+      <Entrance from="none">
+        <AppText variant="title2">Your name</AppText>
+        <AppText variant="subhead" color="textSecondary" style={styles.subtitle}>
+          Set the name shown on your EU Work Support profile.
+        </AppText>
+      </Entrance>
 
-          <View className="mt-8 rounded-[30px] border border-[#EDEDF0] bg-white px-5 py-6">
-            <Text className="text-xl font-extrabold tracking-normal text-[#202124]">
-              Update your profile
-            </Text>
-            <Text className="mt-2 text-base font-semibold leading-7 tracking-normal text-[#707684]">
-              Set your first and last name for your EU Work Support account.
-            </Text>
+      {error ? (
+        <Entrance style={styles.notice}>
+          <AuthNotice tone="error" icon="alert" text={error} />
+        </Entrance>
+      ) : null}
 
-            {error ? (
-              <View className="mt-5 rounded-[18px] bg-[#FFF1F1] px-4 py-3">
-                <Text className="text-sm font-semibold tracking-normal text-[#D83B3B]">
-                  {error}
-                </Text>
-              </View>
-            ) : null}
-
-            {isLoading ? (
-              <View className="items-center justify-center py-12">
-                <CustomLoading />
-                <Text className="mt-3 text-sm font-semibold tracking-normal text-[#707684]">
-                  Loading profile...
-                </Text>
-              </View>
-            ) : (
-              <View className="mt-6 gap-4">
-                <ProfileTextField
-                  label="First Name"
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="Enter first name"
-                  autoComplete="given-name"
-                  textContentType="givenName"
-                />
-                <ProfileTextField
-                  label="Last Name"
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Enter last name"
-                  autoComplete="family-name"
-                  textContentType="familyName"
-                />
-
-                <Pressable
-                  onPress={updateProfile}
-                  disabled={isSubmitting}
-                  className="mt-2 h-14 items-center justify-center rounded-[22px] bg-diplomatic-primary disabled:opacity-60"
-                  accessibilityRole="button"
-                >
-                  {isSubmitting ? (
-                    <CustomLoading size={28} />
-                  ) : (
-                    <Text className="text-base font-extrabold tracking-normal text-white">
-                      Update Profile
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            )}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <Entrance delay={60} style={styles.form}>
+        <Surface>
+          {isLoading ? (
+            <View style={styles.fields}>
+              <Skeleton height={16} width={80} />
+              <Skeleton height={56} />
+              <Skeleton height={16} width={80} />
+              <Skeleton height={56} />
+            </View>
+          ) : (
+            <View style={styles.fields}>
+              <TextField
+                label="First name"
+                icon="person"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Enter first name"
+                autoCapitalize="words"
+                autoCorrect={false}
+                autoComplete="given-name"
+                textContentType="givenName"
+                returnKeyType="next"
+              />
+              <TextField
+                label="Last name"
+                icon="person"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Enter last name"
+                autoCapitalize="words"
+                autoCorrect={false}
+                autoComplete="family-name"
+                textContentType="familyName"
+                returnKeyType="done"
+                onSubmitEditing={updateProfile}
+              />
+              <AppButton
+                label="Save changes"
+                icon="check"
+                loading={isSubmitting}
+                onPress={updateProfile}
+                style={styles.submit}
+              />
+            </View>
+          )}
+        </Surface>
+      </Entrance>
+    </Screen>
   );
 }
 
-function Header({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Pressable
-        onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full border border-[#E6E6EA] bg-white"
-        accessibilityRole="button"
-      >
-        <Ionicons name="chevron-back" size={21} color="#202124" />
-      </Pressable>
-      <Text className="text-[28px] font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <View className="h-11 w-11" />
-    </View>
-  );
-}
-
-function ProfileTextField({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  autoComplete,
-  textContentType,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  placeholder: string;
-  autoComplete: "given-name" | "family-name";
-  textContentType: "givenName" | "familyName";
-}) {
-  return (
-    <View>
-      <Text className="mb-2 text-sm font-extrabold tracking-normal text-[#202124]">
-        {label}
-      </Text>
-      <View className="h-14 flex-row items-center rounded-[20px] border border-[#E2E2E6] bg-[#FAFAFB] px-4">
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor="#A1A6B1"
-          autoCapitalize="words"
-          autoCorrect={false}
-          autoComplete={autoComplete}
-          textContentType={textContentType}
-          className="min-w-0 flex-1 text-base font-semibold tracking-normal text-[#202124]"
-        />
-      </View>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  subtitle: {
+    marginTop: Spacing.sm,
+  },
+  notice: {
+    marginTop: Spacing.xl,
+  },
+  form: {
+    marginTop: Spacing.xl,
+  },
+  fields: {
+    gap: Spacing.lg,
+  },
+  submit: {
+    marginTop: Spacing.xs,
+  },
+});

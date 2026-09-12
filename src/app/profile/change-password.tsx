@@ -1,22 +1,20 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, StyleSheet, View } from "react-native";
 
-import { CustomLoading } from "@/components/custom-loading";
+import { AppButton } from "@/components/ui/app-button";
+import { AppText } from "@/components/ui/app-text";
+import { Entrance } from "@/components/ui/entrance";
+import { Screen } from "@/components/ui/screen";
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { Surface } from "@/components/ui/surface";
+import { TextField } from "@/components/ui/text-field";
+import { Spacing } from "@/constants/theme";
+import { AuthNotice } from "@/features/auth/components/auth-layout";
 import { PremiumGuard } from "@/features/auth/components/premium-guard";
 import { getAuthErrorMessage } from "@/features/auth/errors";
+import { haptic } from "@/lib/haptics";
 
 type PasswordUser = {
   updatePassword: (params: {
@@ -42,6 +40,11 @@ function ChangePasswordContent() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const mismatch =
+    confirmPassword.length > 0 && newPassword !== confirmPassword
+      ? "Passwords do not match."
+      : null;
 
   const updatePassword = async () => {
     if (isSubmitting) {
@@ -75,139 +78,104 @@ function ChangePasswordContent() {
         signOutOfOtherSessions: true,
       });
 
-      Alert.alert("Password Updated", "Your password has been changed.", [
+      haptic.success();
+      Alert.alert("Password updated", "Your password has been changed.", [
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (authError) {
-      setError(
-        getAuthErrorMessage(authError, "Unable to change your password."),
-      );
+      haptic.error();
+      setError(getAuthErrorMessage(authError, "Unable to change your password."));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-[#FAFAFB]">
-      <KeyboardAvoidingView
-        behavior={Platform.select({ ios: "padding", default: undefined })}
-        className="flex-1"
-      >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          className="flex-1"
-          contentContainerClassName="px-5 pb-10 pt-7"
-          showsVerticalScrollIndicator={false}
-        >
-          <Header title="Change Password" onBack={() => router.back()} />
+    <Screen scroll keyboard header={<ScreenHeader padded title="Change password" />}>
+      <Entrance from="none">
+        <AppText variant="title2">Update your password</AppText>
+        <AppText variant="subhead" color="textSecondary" style={styles.subtitle}>
+          Enter your current password and choose a new secure password. Other
+          devices will be signed out.
+        </AppText>
+      </Entrance>
 
-          <View className="mt-8 rounded-[30px] border border-[#EDEDF0] bg-white px-5 py-6">
-            <Text className="text-xl font-extrabold tracking-normal text-[#202124]">
-              Update your password
-            </Text>
-            <Text className="mt-2 text-sm font-semibold leading-5 tracking-normal text-[#707684]">
-              Enter your current password and choose a new secure password.
-            </Text>
+      {error ? (
+        <Entrance style={styles.notice}>
+          <AuthNotice tone="error" icon="alert" text={error} />
+        </Entrance>
+      ) : null}
 
-            {error ? (
-              <View className="mt-5 rounded-[18px] bg-[#FFF1F1] px-4 py-3">
-                <Text className="text-sm font-semibold tracking-normal text-[#D83B3B]">
-                  {error}
-                </Text>
-              </View>
-            ) : null}
-
-            <View className="mt-6 gap-4">
-              <PasswordField
-                label="Current Password"
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                textContentType="password"
-              />
-              <PasswordField
-                label="New Password"
-                value={newPassword}
-                onChangeText={setNewPassword}
-                textContentType="newPassword"
-              />
-              <PasswordField
-                label="Confirm New Password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                textContentType="newPassword"
-              />
-
-              <Pressable
-                onPress={updatePassword}
-                disabled={isSubmitting}
-                className="mt-2 h-14 items-center justify-center rounded-[22px] bg-diplomatic-primary disabled:opacity-60"
-                accessibilityRole="button"
-              >
-                {isSubmitting ? (
-                  <CustomLoading size={28} />
-                ) : (
-                  <Text className="text-base font-extrabold tracking-normal text-white">
-                    Change Password
-                  </Text>
-                )}
-              </Pressable>
-            </View>
+      <Entrance delay={60} style={styles.form}>
+        <Surface>
+          <View style={styles.fields}>
+            <TextField
+              label="Current password"
+              icon="lock"
+              secureToggle
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              autoCapitalize="none"
+              autoComplete="current-password"
+              textContentType="password"
+              placeholder="Current password"
+            />
+            <TextField
+              label="New password"
+              icon="key"
+              secureToggle
+              value={newPassword}
+              onChangeText={setNewPassword}
+              autoCapitalize="none"
+              autoComplete="new-password"
+              textContentType="newPassword"
+              placeholder="At least 8 characters"
+            />
+            <TextField
+              label="Confirm new password"
+              icon="key"
+              secureToggle
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              autoCapitalize="none"
+              autoComplete="new-password"
+              textContentType="newPassword"
+              placeholder="Repeat the new password"
+              error={mismatch}
+              returnKeyType="done"
+              onSubmitEditing={updatePassword}
+            />
+            <AppButton
+              label="Change password"
+              icon="shield"
+              loading={isSubmitting}
+              disabled={
+                !currentPassword || !newPassword || !confirmPassword || Boolean(mismatch)
+              }
+              onPress={updatePassword}
+              style={styles.submit}
+            />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </Surface>
+      </Entrance>
+    </Screen>
   );
 }
 
-function Header({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Pressable
-        onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full border border-[#E6E6EA] bg-white"
-        accessibilityRole="button"
-      >
-        <Ionicons name="chevron-back" size={21} color="#202124" />
-      </Pressable>
-      <Text className="text-[25px] font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <View className="h-11 w-11" />
-    </View>
-  );
-}
-
-function PasswordField({
-  label,
-  value,
-  onChangeText,
-  textContentType,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  textContentType: "password" | "newPassword";
-}) {
-  return (
-    <View>
-      <Text className="mb-2 text-sm font-extrabold tracking-normal text-[#202124]">
-        {label}
-      </Text>
-      <View className="h-14 flex-row items-center rounded-[20px] border border-[#E2E2E6] bg-[#FAFAFB] px-4">
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          secureTextEntry
-          autoCapitalize="none"
-          autoComplete={
-            textContentType === "password" ? "current-password" : "new-password"
-          }
-          textContentType={textContentType}
-          placeholder={label}
-          placeholderTextColor="#A1A6B1"
-          className="min-w-0 flex-1 text-base font-semibold tracking-normal text-[#202124]"
-        />
-      </View>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  subtitle: {
+    marginTop: Spacing.sm,
+  },
+  notice: {
+    marginTop: Spacing.xl,
+  },
+  form: {
+    marginTop: Spacing.xl,
+  },
+  fields: {
+    gap: Spacing.lg,
+  },
+  submit: {
+    marginTop: Spacing.xs,
+  },
+});

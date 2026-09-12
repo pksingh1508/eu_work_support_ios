@@ -1,14 +1,15 @@
 import { useSignIn } from "@clerk/expo";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { Link, useLocalSearchParams, useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
-import {
-  AuthCard,
-  AuthPrimaryButton,
-  AuthTextField,
-} from "@/features/auth/components/auth-card";
+import { AppButton } from "@/components/ui/app-button";
+import { AppText } from "@/components/ui/app-text";
+import { NativeToggle } from "@/components/ui/native-toggle";
+import { PressableScale } from "@/components/ui/pressable-scale";
+import { TextField } from "@/components/ui/text-field";
+import { Spacing } from "@/constants/theme";
+import { AuthLayout, AuthNotice } from "@/features/auth/components/auth-layout";
 import { getAuthErrorMessage } from "@/features/auth/errors";
 import { isEmailProUser } from "@/lib/pro-account";
 import { showInfoToast } from "@/lib/toast";
@@ -17,11 +18,7 @@ const CLERK_SIGN_IN_TIMEOUT_MS = 20000;
 
 type SecondFactorMethod = "email_code" | "phone_code";
 
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  message: string,
-) {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -46,7 +43,6 @@ export default function SignInScreen() {
   const [secondFactorCode, setSecondFactorCode] = useState("");
   const [secondFactorMethod, setSecondFactorMethod] =
     useState<SecondFactorMethod | null>(null);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
@@ -108,15 +104,13 @@ export default function SignInScreen() {
       );
 
       if (sendError) {
-        setError(
-          getAuthErrorMessage(sendError, "Unable to send verification code."),
-        );
+        setError(getAuthErrorMessage(sendError, "Unable to send verification code."));
         return;
       }
 
       setSecondFactorMethod("email_code");
       setSecondFactorCode("");
-      showInfoToast("Check your email", "Enter the code to finish login.");
+      showInfoToast("Check your email", "Enter the code to finish logging in.");
       return;
     }
 
@@ -128,21 +122,17 @@ export default function SignInScreen() {
       );
 
       if (sendError) {
-        setError(
-          getAuthErrorMessage(sendError, "Unable to send verification code."),
-        );
+        setError(getAuthErrorMessage(sendError, "Unable to send verification code."));
         return;
       }
 
       setSecondFactorMethod("phone_code");
       setSecondFactorCode("");
-      showInfoToast("Check your phone", "Enter the code to finish login.");
+      showInfoToast("Check your phone", "Enter the code to finish logging in.");
       return;
     }
 
-    setError(
-      "This account needs a second factor that this app does not support yet.",
-    );
+    setError("This account needs a second factor that this app does not support yet.");
   };
 
   const handleSignIn = async () => {
@@ -162,28 +152,20 @@ export default function SignInScreen() {
       const isVerified = await isEmailProUser(normalizedEmail);
 
       if (!isVerified) {
-        showInfoToast("Not Access", "Please Request Access.");
+        showInfoToast("No active access", "Request access to continue.");
         setUnverifiedEmail(normalizedEmail);
         openVerifyPage(normalizedEmail);
         return;
       }
 
       const { error: signInError } = await withTimeout(
-        signIn.password({
-          emailAddress: normalizedEmail,
-          password,
-        }),
+        signIn.password({ emailAddress: normalizedEmail, password }),
         CLERK_SIGN_IN_TIMEOUT_MS,
         "Clerk did not respond. Check that Native API and email/password login are enabled in Clerk.",
       );
 
       if (signInError) {
-        setError(
-          getAuthErrorMessage(
-            signInError,
-            "Unable to login with those details.",
-          ),
-        );
+        setError(getAuthErrorMessage(signInError, "Unable to log in with those details."));
         return;
       }
 
@@ -200,13 +182,9 @@ export default function SignInScreen() {
         return;
       }
 
-      setError(
-        "Login could not finish. Please check your credentials and try again.",
-      );
+      setError("Login could not finish. Please check your credentials and try again.");
     } catch (authError) {
-      setError(
-        getAuthErrorMessage(authError, "Unable to login with those details."),
-      );
+      setError(getAuthErrorMessage(authError, "Unable to log in with those details."));
     } finally {
       setIsSubmitting(false);
     }
@@ -235,9 +213,7 @@ export default function SignInScreen() {
             );
 
       if (verifyError) {
-        setError(
-          getAuthErrorMessage(verifyError, "Unable to verify that code."),
-        );
+        setError(getAuthErrorMessage(verifyError, "Unable to verify that code."));
         return;
       }
 
@@ -254,25 +230,27 @@ export default function SignInScreen() {
     }
   };
 
-  return (
-    <AuthCard
-      headerTitle="Login"
-      title="Welcome back"
-      subtitle="Login to continue your country research, saved guides, and more support."
-      error={null}
-    >
-      {error ? <AuthFormError message={error} /> : null}
+  const canSubmit = secondFactorMethod
+    ? secondFactorCode.trim().length > 0
+    : emailAddress.trim().length > 0 && password.length > 0;
 
+  return (
+    <AuthLayout
+      headerTitle="Log in"
+      backIcon="close"
+      title="Welcome back"
+      subtitle="Log in to continue your country research, saved guides and more support."
+      error={error}
+    >
       {unverifiedEmail ? (
-        <View className="rounded-[18px] bg-[#EEF7FF] px-4 py-4">
-          <Text className="text-sm font-semibold leading-5 tracking-normal text-[#202124]">
-            You don't have Access, Please Request Access and wait for access
-            granted.
-          </Text>
-        </View>
+        <AuthNotice
+          tone="primary"
+          icon="info"
+          text="No active access was found for this email. Request access and we will email you the next steps."
+        />
       ) : null}
 
-      <AuthTextField
+      <TextField
         label="Email"
         icon="mail"
         value={emailAddress}
@@ -282,122 +260,95 @@ export default function SignInScreen() {
         keyboardType="email-address"
         placeholder="name@example.com"
         textContentType="emailAddress"
+        returnKeyType="next"
       />
 
-      <AuthTextField
+      <TextField
         label="Password"
         icon="lock"
-        actionLabel={isPasswordVisible ? "Hide" : "Show"}
-        onActionPress={() => setIsPasswordVisible((current) => !current)}
+        secureToggle
         value={password}
         onChangeText={setPassword}
         autoCapitalize="none"
         autoComplete="password"
-        placeholder="Password"
-        secureTextEntry={!isPasswordVisible}
+        placeholder="Your password"
         textContentType="password"
+        returnKeyType="go"
+        onSubmitEditing={secondFactorMethod ? undefined : handleSignIn}
       />
 
       {secondFactorMethod ? (
-        <View className="rounded-[18px] bg-[#EEF7FF] px-4 py-4">
-          <Text className="text-sm font-semibold leading-5 tracking-normal text-[#202124]">
-            Enter the code Clerk sent to your{" "}
-            {secondFactorMethod === "email_code" ? "email" : "phone"} to finish
-            login.
-          </Text>
-        </View>
+        <>
+          <AuthNotice
+            tone="primary"
+            icon="shield"
+            text={`Enter the code sent to your ${
+              secondFactorMethod === "email_code" ? "email" : "phone"
+            } to finish logging in.`}
+          />
+          <TextField
+            label="Verification code"
+            icon="keypad"
+            value={secondFactorCode}
+            onChangeText={setSecondFactorCode}
+            autoCapitalize="none"
+            autoComplete="one-time-code"
+            keyboardType="number-pad"
+            placeholder="123456"
+            textContentType="oneTimeCode"
+            onSubmitEditing={handleSecondFactor}
+          />
+        </>
       ) : null}
 
-      {secondFactorMethod ? (
-        <AuthTextField
-          label="Verification Code"
-          icon="code"
-          value={secondFactorCode}
-          onChangeText={setSecondFactorCode}
-          autoCapitalize="none"
-          autoComplete="one-time-code"
-          keyboardType="number-pad"
-          placeholder="123456"
-          textContentType="oneTimeCode"
-        />
-      ) : null}
+      <NativeToggle value={rememberMe} onValueChange={setRememberMe} label="Remember me" />
 
-      <View className="flex-row items-center justify-between gap-3">
-        <Pressable
-          onPress={() => setRememberMe((current) => !current)}
-          className="flex-row items-center gap-2"
-          hitSlop={10}
+      <View style={styles.forgotRow}>
+        <PressableScale
+          onPress={() => router.push("/forgot-password")}
+          hitSlop={Spacing.sm}
+          accessibilityRole="link"
+          accessibilityLabel="Forgot password"
         >
-          <View
-            className={`h-5 w-5 items-center justify-center rounded-[5px] ${
-              rememberMe
-                ? "bg-diplomatic-primary"
-                : "border border-[#DADDE3] bg-white"
-            }`}
-          >
-            {rememberMe ? (
-              <Ionicons name="checkmark" size={15} color="#FFFFFF" />
-            ) : null}
-          </View>
-          <Text className="text-sm font-bold tracking-normal text-[#707684]">
-            Remember me
-          </Text>
-        </Pressable>
-
-        <Link href="/forgot-password" asChild>
-          <Pressable hitSlop={10}>
-            <Text className="text-sm font-extrabold tracking-normal text-diplomatic-primary">
-              Forgot password?
-            </Text>
-          </Pressable>
-        </Link>
+          <AppText variant="label" color="primary">
+            Forgot password?
+          </AppText>
+        </PressableScale>
       </View>
 
-      <AuthPrimaryButton
-        label={secondFactorMethod ? "Verify Login" : "Login"}
-        isLoading={isSubmitting}
-        disabled={
-          secondFactorMethod
-            ? !secondFactorCode.trim()
-            : !emailAddress.trim() || !password
-        }
+      <AppButton
+        label={secondFactorMethod ? "Verify and log in" : "Log in"}
+        icon="signIn"
+        loading={isSubmitting}
+        disabled={!canSubmit}
         onPress={secondFactorMethod ? handleSecondFactor : handleSignIn}
       />
 
       {secondFactorMethod ? (
-        <Pressable
-          onPress={startSecondFactor}
+        <AppButton
+          label="Send a new code"
+          variant="ghost"
+          size="md"
           disabled={isSubmitting}
-          className="items-center"
-          hitSlop={10}
-        >
-          <Text className="text-sm font-bold tracking-normal text-diplomatic-primary">
-            Send a new code
-          </Text>
-        </Pressable>
+          onPress={startSecondFactor}
+        />
       ) : null}
 
       {unverifiedEmail ? (
-        <Pressable
+        <AppButton
+          label="Request access"
+          icon="mail"
+          variant="secondary"
           onPress={() => openVerifyPage()}
-          className="h-14 items-center justify-center rounded-[22px] border border-[#CFE0F7] bg-[#EEF7FF] active:opacity-80"
-          accessibilityRole="button"
-        >
-          <Text className="text-base font-extrabold tracking-normal text-diplomatic-primary">
-            Go to Verify Page
-          </Text>
-        </Pressable>
+        />
       ) : null}
-    </AuthCard>
+    </AuthLayout>
   );
 }
 
-function AuthFormError({ message }: { message: string }) {
-  return (
-    <View className="rounded-[18px] bg-[#FFF1F1] px-4 py-3">
-      <Text className="text-sm font-semibold tracking-normal text-[#D83B3B]">
-        {message}
-      </Text>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  forgotRow: {
+    alignItems: "flex-end",
+    marginTop: -Spacing.sm,
+  },
+});

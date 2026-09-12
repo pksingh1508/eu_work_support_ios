@@ -1,18 +1,20 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useClerk } from "@clerk/expo";
+import { useClerk, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, StyleSheet, View } from "react-native";
 
+import { AppText } from "@/components/ui/app-text";
+import { Avatar } from "@/components/ui/avatar";
+import { Entrance } from "@/components/ui/entrance";
+import { ListGroup } from "@/components/ui/list-group";
+import { ListRow } from "@/components/ui/list-row";
+import { Screen } from "@/components/ui/screen";
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { Surface } from "@/components/ui/surface";
+import { Spacing } from "@/constants/theme";
+import { useAuthAccess } from "@/features/auth/access";
 import { PremiumGuard } from "@/features/auth/components/premium-guard";
+import { haptic } from "@/lib/haptics";
 import { clearCachedAuthSnapshot } from "@/lib/local-storage";
-
-type AccountRowProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  onPress: () => void;
-  tone?: "default" | "danger";
-};
 
 export default function ProfileAccountScreen() {
   return (
@@ -25,12 +27,22 @@ export default function ProfileAccountScreen() {
 function ProfileAccountContent() {
   const router = useRouter();
   const { signOut } = useClerk();
+  const { user } = useUser();
+  const { profile } = useAuthAccess();
+
+  const email = profile?.email ?? user?.primaryEmailAddress?.emailAddress ?? "";
+  const databaseName = [profile?.firstName, profile?.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const fullName = databaseName || user?.fullName || user?.firstName || "Welcome";
 
   const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    haptic.warning();
+    Alert.alert("Sign out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Sign Out",
+        text: "Sign out",
         style: "destructive",
         onPress: async () => {
           clearCachedAuthSnapshot();
@@ -41,85 +53,67 @@ function ProfileAccountContent() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-[#FAFAFB]">
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-5 pb-10 pt-7"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header title="Account" onBack={() => router.back()} />
+    <Screen scroll header={<ScreenHeader padded title="Account" />}>
+      <Entrance index={0}>
+        <Surface style={styles.identity}>
+          <Avatar name={fullName} imageUrl={profile?.imageUrl ?? user?.imageUrl} size={56} />
+          <View style={styles.identityText}>
+            <AppText variant="title3" numberOfLines={1}>
+              {fullName}
+            </AppText>
+            {email ? (
+              <AppText variant="footnote" color="textSecondary" numberOfLines={1}>
+                {email}
+              </AppText>
+            ) : null}
+          </View>
+        </Surface>
+      </Entrance>
 
-        <View className="mt-8 gap-3">
-          <AccountRow
-            icon="create-outline"
-            title="Edit Profile"
+      <Entrance index={1} style={styles.section}>
+        <ListGroup title="Details">
+          <ListRow
+            icon="edit"
+            title="Edit profile"
+            subtitle="Update your first and last name"
             onPress={() => router.push("/profile/edit")}
           />
-          <AccountRow
-            icon="lock-closed-outline"
-            title="Change Password"
+          <ListRow
+            icon="lock"
+            title="Change password"
+            subtitle="Choose a new secure password"
             onPress={() => router.push("/profile/change-password")}
           />
-          <AccountRow
-            icon="log-out-outline"
-            title="Sign Out"
+        </ListGroup>
+      </Entrance>
+
+      <Entrance index={2} style={styles.section}>
+        <ListGroup title="Session">
+          <ListRow
+            icon="signOut"
             tone="danger"
+            title="Sign out"
+            trailing="none"
             onPress={handleSignOut}
           />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ListGroup>
+      </Entrance>
+    </Screen>
   );
 }
 
-function Header({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Pressable
-        onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full border border-[#E6E6EA] bg-white"
-        accessibilityRole="button"
-      >
-        <Ionicons name="chevron-back" size={21} color="#202124" />
-      </Pressable>
-      <Text className="text-[28px] font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <View className="h-11 w-11" />
-    </View>
-  );
-}
-
-function AccountRow({ icon, title, onPress, tone = "default" }: AccountRowProps) {
-  const isDanger = tone === "danger";
-
-  return (
-    <Pressable
-      onPress={onPress}
-      className="min-h-[78px] flex-row items-center rounded-[28px] border border-[#EDEDF0] bg-white px-5 active:opacity-80"
-      accessibilityRole="button"
-    >
-      <View
-        className={`h-[50px] w-[50px] items-center justify-center rounded-[19px] ${
-          isDanger ? "bg-[#FFF1F1]" : "bg-[#F4F4F5]"
-        }`}
-      >
-        <Ionicons
-          name={icon}
-          size={24}
-          color={isDanger ? "#D83B3B" : "#202124"}
-        />
-      </View>
-      <Text
-        className={`ml-5 min-w-0 flex-1 text-xl font-extrabold tracking-normal ${
-          isDanger ? "text-[#D83B3B]" : "text-[#202124]"
-        }`}
-      >
-        {title}
-      </Text>
-      {!isDanger ? (
-        <Ionicons name="chevron-forward" size={20} color="#202124" />
-      ) : null}
-    </Pressable>
-  );
-}
+const styles = StyleSheet.create({
+  identity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.lg,
+  },
+  identityText: {
+    flex: 1,
+    minWidth: 0,
+    gap: Spacing.xxs,
+  },
+  section: {
+    marginTop: Spacing.xxl,
+  },
+});

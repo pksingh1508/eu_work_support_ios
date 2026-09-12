@@ -1,12 +1,9 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
 
-import {
-  AuthCard,
-  AuthPrimaryButton,
-  AuthTextField,
-} from "@/features/auth/components/auth-card";
+import { AppButton } from "@/components/ui/app-button";
+import { TextField } from "@/components/ui/text-field";
+import { AuthLayout, AuthNotice } from "@/features/auth/components/auth-layout";
 import { isEmailProUser } from "@/lib/pro-account";
 import { sendWebsitePaymentLink } from "@/lib/send-email";
 import { showInfoToast } from "@/lib/toast";
@@ -42,6 +39,14 @@ export default function VerifyScreen() {
   const normalizedEmail = normalizeEmail(emailAddress);
   const canSubmit = isValidEmail(normalizedEmail);
 
+  const openLogin = () => {
+    const href = returnTo
+      ? `/sign-in?returnTo=${encodeURIComponent(returnTo)}`
+      : "/sign-in";
+
+    router.replace(href as Href);
+  };
+
   const sendVerificationLink = async () => {
     if (isSubmitting || !canSubmit) {
       return;
@@ -54,7 +59,7 @@ export default function VerifyScreen() {
       const alreadyVerified = await isEmailProUser(normalizedEmail);
 
       if (alreadyVerified) {
-        showInfoToast("You have access", "Please login to access.");
+        showInfoToast("You already have access", "Log in to continue.");
         openLogin();
         return;
       }
@@ -72,34 +77,25 @@ export default function VerifyScreen() {
     }
   };
 
-  const openLogin = () => {
-    const href = returnTo
-      ? `/sign-in?returnTo=${encodeURIComponent(returnTo)}`
-      : "/sign-in";
-
-    router.replace(href as Href);
-  };
-
   return (
-    <AuthCard
-      headerTitle="Request Access"
-      title={
-        hasSentLink ? "Check your email" : "Request access to EU Work Support"
-      }
+    <AuthLayout
+      headerTitle="Request access"
+      title={hasSentLink ? "Check your email" : "Request access"}
       subtitle={
-        hasSentLink ? "We sent an email." : "Enter email to Request Access."
+        hasSentLink
+          ? "We sent an email. Check your inbox or spam folder, then follow the link to finish."
+          : "Enter your email and we will send you the next steps for your EU Work Support account."
       }
       error={error}
     >
       {hasSentLink ? (
-        <View className="rounded-[18px] bg-[#EEF7FF] px-4 py-4">
-          <Text className="text-base font-semibold leading-7 tracking-normal text-[#202124]">
-            We have successfully sent an email, click on email to Request
-            Access.
-          </Text>
-        </View>
+        <AuthNotice
+          tone="primary"
+          icon="mail"
+          text={`An email is on its way to ${normalizedEmail}.`}
+        />
       ) : (
-        <AuthTextField
+        <TextField
           label="Email"
           icon="mail"
           value={emailAddress}
@@ -110,27 +106,31 @@ export default function VerifyScreen() {
           keyboardType="email-address"
           placeholder="name@example.com"
           textContentType="emailAddress"
+          returnKeyType="send"
+          onSubmitEditing={sendVerificationLink}
         />
       )}
 
       {hasSentLink ? (
-        <AuthPrimaryButton label="Login" onPress={openLogin} />
+        <AppButton label="Log in" icon="signIn" onPress={openLogin} />
       ) : (
-        <AuthPrimaryButton
-          label="Request Access"
-          isLoading={isSubmitting}
+        <AppButton
+          label="Request access"
+          icon="mail"
+          loading={isSubmitting}
           disabled={!canSubmit}
           onPress={sendVerificationLink}
         />
       )}
 
       {!hasSentLink ? (
-        <Pressable className="items-center" hitSlop={10} onPress={openLogin}>
-          <Text className="text-sm font-bold tracking-normal text-diplomatic-primary">
-            You have access? Login
-          </Text>
-        </Pressable>
+        <AppButton
+          label="Already have access? Log in"
+          variant="ghost"
+          size="md"
+          onPress={openLogin}
+        />
       ) : null}
-    </AuthCard>
+    </AuthLayout>
   );
 }

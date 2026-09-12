@@ -1,90 +1,82 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import { Linking, Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet } from "react-native";
 
-const supportEmail = "support@euworksupport.com";
+import { AppText } from "@/components/ui/app-text";
+import { Entrance } from "@/components/ui/entrance";
+import { IconBadge } from "@/components/ui/icon-badge";
+import { ListGroup } from "@/components/ui/list-group";
+import { ListRow } from "@/components/ui/list-row";
+import { Screen } from "@/components/ui/screen";
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { Surface } from "@/components/ui/surface";
+import { Spacing } from "@/constants/theme";
+import { openMailTo } from "@/lib/url";
+
+const SUPPORT_EMAIL = "support@euworksupport.com";
 
 export default function SupportScreen() {
   const router = useRouter();
 
-  const openMail = (subject: string) => {
-    void Linking.openURL(
-      `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}`,
-    );
-  };
-
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-[#FAFAFB]">
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-5 pb-10 pt-7"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header title="Support" onBack={() => router.back()} />
+    <Screen scroll header={<ScreenHeader padded title="Support" />}>
+      <Entrance index={0}>
+        <Surface tone="primary" style={styles.hero}>
+          <IconBadge icon="support" tone="primary" size={52} />
+          <AppText variant="title2" style={styles.heroTitle}>
+            We're here to help
+          </AppText>
+          <AppText variant="subhead" color="textSecondary">
+            Questions about a guide, your account or something that looks out of
+            date? Reach the team directly.
+          </AppText>
+        </Surface>
+      </Entrance>
 
-        <View className="mt-8 gap-3">
-          <SupportRow
-            icon="mail-outline"
-            title="Contact Support"
-            onPress={() => openMail("Contact Support")}
+      <Entrance index={1} style={styles.section}>
+        <ListGroup title="Get in touch">
+          <ListRow
+            icon="mail"
+            title="Contact support"
+            subtitle={SUPPORT_EMAIL}
+            onPress={() => openMailTo(SUPPORT_EMAIL, "Contact Support")}
           />
-          <SupportRow
-            icon="alert-circle-outline"
-            title="Report a Problem"
-            onPress={() => openMail("Report a Problem")}
+          <ListRow
+            icon="reportProblem"
+            title="Report a problem"
+            subtitle="Tell us about outdated or incorrect information"
+            onPress={() => openMailTo(SUPPORT_EMAIL, "Report a Problem")}
           />
-          <SupportRow
-            icon="help-circle-outline"
+        </ListGroup>
+      </Entrance>
+
+      <Entrance index={2} style={styles.section}>
+        <ListGroup title="Self-service">
+          <ListRow
+            icon="help"
             title="FAQ"
+            subtitle="Answers to common questions"
             onPress={() => router.push("/profile/faq")}
           />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          <ListRow
+            icon="sources"
+            title="Sources and disclaimer"
+            subtitle="How our guides are researched"
+            onPress={() => router.push("/profile/sources-and-disclaimer")}
+          />
+        </ListGroup>
+      </Entrance>
+    </Screen>
   );
 }
 
-function Header({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Pressable
-        onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full border border-[#E6E6EA] bg-white"
-        accessibilityRole="button"
-      >
-        <Ionicons name="chevron-back" size={21} color="#202124" />
-      </Pressable>
-      <Text className="text-[28px] font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <View className="h-11 w-11" />
-    </View>
-  );
-}
-
-function SupportRow({
-  icon,
-  title,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className="min-h-[78px] flex-row items-center rounded-[28px] border border-[#EDEDF0] bg-white px-5 active:opacity-80"
-      accessibilityRole="button"
-    >
-      <View className="h-[50px] w-[50px] items-center justify-center rounded-[19px] bg-[#F4F4F5]">
-        <Ionicons name={icon} size={24} color="#202124" />
-      </View>
-      <Text className="ml-5 min-w-0 flex-1 text-xl font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <Ionicons name="chevron-forward" size={20} color="#202124" />
-    </Pressable>
-  );
-}
+const styles = StyleSheet.create({
+  hero: {
+    gap: Spacing.sm,
+  },
+  heroTitle: {
+    marginTop: Spacing.sm,
+  },
+  section: {
+    marginTop: Spacing.xxl,
+  },
+});

@@ -1,17 +1,30 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useClerk, useUser } from "@clerk/expo";
-import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, StyleSheet, View } from "react-native";
 
-import { CustomLoading } from "@/components/custom-loading";
+import { AppButton } from "@/components/ui/app-button";
+import { AppText } from "@/components/ui/app-text";
+import { Entrance } from "@/components/ui/entrance";
+import { Icon } from "@/components/ui/icon";
+import { IconBadge } from "@/components/ui/icon-badge";
+import { Screen } from "@/components/ui/screen";
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { Surface } from "@/components/ui/surface";
+import { Spacing } from "@/constants/theme";
 import { PremiumGuard } from "@/features/auth/components/premium-guard";
+import { useTheme } from "@/hooks/use-theme";
+import { haptic } from "@/lib/haptics";
 import { clearCachedAuthSnapshot } from "@/lib/local-storage";
 
 type DeletableUser = {
   delete: () => Promise<unknown>;
 };
+
+const consequences = [
+  "Your account and login are removed permanently.",
+  "Saved countries and guides are deleted.",
+  "You will be signed out on this device immediately.",
+];
 
 export default function DangerZoneScreen() {
   return (
@@ -22,14 +35,15 @@ export default function DangerZoneScreen() {
 }
 
 function DangerZoneContent() {
-  const router = useRouter();
+  const { colors } = useTheme();
   const { user } = useUser();
   const { signOut } = useClerk();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const deleteAccount = () => {
+    haptic.warning();
     Alert.alert(
-      "Delete Account",
+      "Delete account",
       "This action permanently deletes your account. Are you sure?",
       [
         { text: "Cancel", style: "cancel" },
@@ -69,59 +83,65 @@ function DangerZoneContent() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-[#FAFAFB]">
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-5 pb-10 pt-7"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header title="Danger Zone" onBack={() => router.back()} />
-
-        <View className="mt-8 rounded-[30px] border border-[#F4C8C8] bg-white px-5 py-6">
-          <Text className="text-xl font-extrabold tracking-normal text-[#D83B3B]">
-            Delete Account
-          </Text>
-          <Text className="mt-2 text-sm font-semibold leading-5 tracking-normal text-[#707684]">
+    <Screen scroll header={<ScreenHeader padded title="Danger zone" />}>
+      <Entrance>
+        <Surface tone="error">
+          <IconBadge icon="warning" tone="danger" size={52} radius="md" />
+          <AppText variant="title2" style={styles.title}>
+            Delete account
+          </AppText>
+          <AppText variant="body" color="textSecondary" style={styles.body}>
             Permanently remove your account and sign out of EU Work Support.
-          </Text>
+            This cannot be undone.
+          </AppText>
 
-          <Pressable
+          <View style={styles.list}>
+            {consequences.map((item) => (
+              <View key={item} style={styles.item}>
+                <Icon name="closeCircle" size={18} color={colors.error} />
+                <AppText variant="subhead" color="textSecondary" style={styles.itemText}>
+                  {item}
+                </AppText>
+              </View>
+            ))}
+          </View>
+
+          <AppButton
+            label="Delete account"
+            icon="trash"
+            variant="destructive"
+            loading={isDeleting}
+            haptic="none"
             onPress={deleteAccount}
-            disabled={isDeleting}
-            className="mt-6 h-14 flex-row items-center justify-center rounded-[22px] bg-[#D83B3B] disabled:opacity-60"
-            accessibilityRole="button"
-          >
-            {isDeleting ? (
-              <CustomLoading size={28} />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={19} color="#FFFFFF" />
-                <Text className="ml-2 text-base font-extrabold tracking-normal text-white">
-                  Delete Account
-                </Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            style={styles.button}
+          />
+        </Surface>
+      </Entrance>
+    </Screen>
   );
 }
 
-function Header({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Pressable
-        onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full border border-[#E6E6EA] bg-white"
-        accessibilityRole="button"
-      >
-        <Ionicons name="chevron-back" size={21} color="#202124" />
-      </Pressable>
-      <Text className="text-[25px] font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <View className="h-11 w-11" />
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  title: {
+    marginTop: Spacing.lg,
+  },
+  body: {
+    marginTop: Spacing.sm,
+  },
+  list: {
+    marginTop: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  item: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.sm,
+  },
+  itemText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  button: {
+    marginTop: Spacing.xxl,
+  },
+});

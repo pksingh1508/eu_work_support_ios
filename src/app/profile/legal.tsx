@@ -1,81 +1,71 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { type Href, useRouter } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter, type Href } from "expo-router";
+import { StyleSheet } from "react-native";
 
-const legalItems = [
-  { title: "Privacy Policy", href: "/profile/legal/privacy-policy" },
-  { title: "Terms & Conditions", href: "/profile/legal/terms-and-conditions" },
-  { title: "Data Deletion Policy", href: "/profile/legal/data-deletion" },
-  { title: "Open Source License", href: "/profile/legal/open-source" },
+import { AppText } from "@/components/ui/app-text";
+import { Entrance } from "@/components/ui/entrance";
+import type { IconName } from "@/components/ui/icon-names";
+import { ListGroup } from "@/components/ui/list-group";
+import { ListRow } from "@/components/ui/list-row";
+import { Screen } from "@/components/ui/screen";
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { Spacing } from "@/constants/theme";
+
+const legalItems: Array<{ title: string; subtitle: string; icon: IconName; href: Href }> = [
+  {
+    title: "Privacy policy",
+    subtitle: "How we collect, use and protect your data",
+    icon: "lockShield",
+    href: "/profile/legal/privacy-policy",
+  },
+  {
+    title: "Terms and conditions",
+    subtitle: "The rules for using EU Work Support",
+    icon: "legal",
+    href: "/profile/legal/terms-and-conditions",
+  },
+  {
+    title: "Data deletion policy",
+    subtitle: "What happens when you delete your account",
+    icon: "trash",
+    href: "/profile/legal/data-deletion",
+  },
+  {
+    title: "Open source licences",
+    subtitle: "Third-party software used in the app",
+    icon: "book",
+    href: "/profile/legal/open-source",
+  },
 ];
 
 export default function LegalScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-[#FAFAFB]">
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-5 pb-10 pt-7"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header title="Legal" onBack={() => router.back()} />
-
-        <View className="mt-8 rounded-[30px] border border-[#EDEDF0] bg-white px-5 py-2">
-          {legalItems.map((item, index) => (
-            <InfoRow
-              key={item.href}
+    <Screen scroll header={<ScreenHeader padded title="Legal" />}>
+      <Entrance from="none">
+        <AppText variant="subhead" color="textSecondary" style={styles.intro}>
+          The policies that govern your use of EU Work Support.
+        </AppText>
+      </Entrance>
+      <Entrance index={1}>
+        <ListGroup>
+          {legalItems.map((item) => (
+            <ListRow
+              key={item.title}
+              icon={item.icon}
               title={item.title}
-              isLast={index === legalItems.length - 1}
-              onPress={() => router.push(item.href as Href)}
+              subtitle={item.subtitle}
+              onPress={() => router.push(item.href)}
             />
           ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ListGroup>
+      </Entrance>
+    </Screen>
   );
 }
 
-function Header({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Pressable
-        onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full border border-[#E6E6EA] bg-white"
-        accessibilityRole="button"
-      >
-        <Ionicons name="chevron-back" size={21} color="#202124" />
-      </Pressable>
-      <Text className="text-[28px] font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <View className="h-11 w-11" />
-    </View>
-  );
-}
-
-function InfoRow({
-  title,
-  isLast,
-  onPress,
-}: {
-  title: string;
-  isLast: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`min-h-[70px] flex-row items-center ${
-        isLast ? "" : "border-b border-[#EAEAED]"
-      }`}
-      accessibilityRole="button"
-    >
-      <Text className="min-w-0 flex-1 text-lg font-extrabold tracking-normal text-[#202124]">
-        {title}
-      </Text>
-      <Ionicons name="chevron-forward" size={19} color="#202124" />
-    </Pressable>
-  );
-}
+const styles = StyleSheet.create({
+  intro: {
+    marginBottom: Spacing.xl,
+  },
+});

@@ -1,7 +1,17 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
-import { Linking, Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, View } from "react-native";
+
+import { AppText } from "@/components/ui/app-text";
+import { Entrance } from "@/components/ui/entrance";
+import { Icon } from "@/components/ui/icon";
+import { IconBadge } from "@/components/ui/icon-badge";
+import type { IconName } from "@/components/ui/icon-names";
+import { PressableScale } from "@/components/ui/pressable-scale";
+import { Screen } from "@/components/ui/screen";
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { Surface } from "@/components/ui/surface";
+import { Radii, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { openMailTo } from "@/lib/url";
 
 const SUPPORT_EMAIL = "support@euworksupport.eu";
 
@@ -15,136 +25,138 @@ const disclaimerParagraphs = [
   "EU Work Support does not provide legal, immigration, financial, recruitment, or professional advice. Information provided through the app should not be considered a substitute for advice from a qualified professional or authorized government authority.",
 ];
 
-export default function SourcesAndDisclaimerScreen() {
-  const router = useRouter();
+const reviewParagraphs = [
+  "Our content is periodically reviewed against the official sources linked within each article. The “Last reviewed” date indicates when the information was most recently checked by our content team.",
+];
 
-  const openSupportEmail = () => {
-    void Linking.openURL(
-      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Report outdated information")}`,
-    );
-  };
+export default function SourcesAndDisclaimerScreen() {
+  const { colors } = useTheme();
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-[#FAFAFB]">
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-5 pb-12 pt-7"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header onBack={() => router.back()} />
-
-        <View className="mt-8 rounded-[30px] border border-[#EDEDF0] bg-white px-5 py-6">
-          <View className="h-[54px] w-[54px] items-center justify-center rounded-[20px] bg-[#F0F4FF]">
-            <Ionicons name="shield-checkmark-outline" size={27} color="#315EA8" />
-          </View>
-          <Text className="mt-5 text-[26px] font-extrabold leading-8 tracking-normal text-[#202124]">
+    <Screen scroll header={<ScreenHeader padded title="Sources and disclaimer" />}>
+      <Entrance index={0}>
+        <Surface tone="primary">
+          <IconBadge icon="shield" tone="primary" size={52} />
+          <AppText variant="title2" style={styles.heroTitle}>
             Independent information, clearly sourced
-          </Text>
-          <Text className="mt-4 text-base font-semibold leading-7 tracking-normal text-[#5F6673]">
-            EU Work Support is an independent educational and informational application. We are not affiliated with, endorsed by, or officially connected to any government, embassy, consulate, immigration authority, visa office, university, college, or employment authority.
-          </Text>
-        </View>
+          </AppText>
+          <AppText variant="body" color="textSecondary" style={styles.heroBody}>
+            EU Work Support is an independent educational and informational
+            application. We are not affiliated with, endorsed by, or officially
+            connected to any government, embassy, consulate, immigration
+            authority, visa office, university, college, or employment
+            authority.
+          </AppText>
+        </Surface>
+      </Entrance>
 
-        <ContentSection
-          icon="library-outline"
-          title="Our sources"
-          paragraphs={sourceParagraphs}
-        />
+      <ContentCard index={1} icon="sources" title="Our sources" paragraphs={sourceParagraphs} />
+      <ContentCard index={2} icon="alert" title="Disclaimer" paragraphs={disclaimerParagraphs} />
+      <ContentCard
+        index={3}
+        icon="checkCircle"
+        title="Content review process"
+        paragraphs={reviewParagraphs}
+      />
 
-        <ContentSection
-          icon="alert-circle-outline"
-          title="Disclaimer"
-          paragraphs={disclaimerParagraphs}
-        />
-
-        <ContentSection
-          icon="checkmark-circle-outline"
-          title="Content review process"
-          paragraphs={[
-            "Our content is periodically reviewed against the official sources linked within each article. The “Last reviewed” date indicates when the information was most recently checked by our content team.",
-          ]}
-        />
-
-        <View className="mt-4 rounded-[30px] border border-[#EDEDF0] bg-white px-5 py-6">
-          <SectionHeading icon="chatbox-ellipses-outline" title="Reporting outdated information" />
-          <Text className="mt-4 text-base font-semibold leading-7 tracking-normal text-[#5F6673]">
-            Users can report inaccurate or outdated information through the Contact Support option available within the app or by emailing
-          </Text>
-          <Pressable
-            onPress={openSupportEmail}
-            className="mt-3 min-h-11 self-start justify-center rounded-xl bg-[#F0F4FF] px-4 active:opacity-75"
+      <Entrance index={4} style={styles.section}>
+        <Surface>
+          <CardHeading icon="reportProblem" title="Reporting outdated information" />
+          <AppText variant="body" color="textSecondary" style={styles.paragraph}>
+            Report inaccurate or outdated information through Support in the app
+            or by emailing us directly.
+          </AppText>
+          <PressableScale
+            onPress={() => openMailTo(SUPPORT_EMAIL, "Report outdated information")}
+            scaleTo={0.97}
+            haptic="light"
             accessibilityRole="link"
             accessibilityLabel={`Email ${SUPPORT_EMAIL}`}
+            style={[styles.emailChip, { backgroundColor: colors.primarySoft }]}
           >
-            <Text className="text-base font-extrabold tracking-normal text-[#315EA8]">
+            <Icon name="mail" size={16} color={colors.primary} />
+            <AppText variant="label" color="primary">
               {SUPPORT_EMAIL}
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            </AppText>
+          </PressableScale>
+        </Surface>
+      </Entrance>
+    </Screen>
   );
 }
 
-function Header({ onBack }: { onBack: () => void }) {
-  return (
-    <View className="flex-row items-center">
-      <Pressable
-        onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full border border-[#E6E6EA] bg-white active:opacity-75"
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <Ionicons name="chevron-back" size={21} color="#202124" />
-      </Pressable>
-      <Text className="ml-4 min-w-0 flex-1 text-[25px] font-extrabold leading-8 tracking-normal text-[#202124]">
-        Sources and Disclaimer
-      </Text>
-    </View>
-  );
-}
-
-function ContentSection({
+function ContentCard({
+  index,
   icon,
   title,
   paragraphs,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  index: number;
+  icon: IconName;
   title: string;
   paragraphs: string[];
 }) {
   return (
-    <View className="mt-4 rounded-[30px] border border-[#EDEDF0] bg-white px-5 py-6">
-      <SectionHeading icon={icon} title={title} />
-      <View className="mt-4 gap-4">
-        {paragraphs.map((paragraph) => (
-          <Text
-            key={paragraph}
-            className="text-base font-semibold leading-7 tracking-normal text-[#5F6673]"
-          >
-            {paragraph}
-          </Text>
-        ))}
-      </View>
+    <Entrance index={index} style={styles.section}>
+      <Surface>
+        <CardHeading icon={icon} title={title} />
+        <View style={styles.paragraphs}>
+          {paragraphs.map((paragraph) => (
+            <AppText key={paragraph} variant="body" color="textSecondary">
+              {paragraph}
+            </AppText>
+          ))}
+        </View>
+      </Surface>
+    </Entrance>
+  );
+}
+
+function CardHeading({ icon, title }: { icon: IconName; title: string }) {
+  return (
+    <View style={styles.heading}>
+      <IconBadge icon={icon} size={40} />
+      <AppText variant="title3" style={styles.headingText}>
+        {title}
+      </AppText>
     </View>
   );
 }
 
-function SectionHeading({
-  icon,
-  title,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-}) {
-  return (
-    <View className="flex-row items-center">
-      <View className="h-10 w-10 items-center justify-center rounded-[15px] bg-[#F4F4F5]">
-        <Ionicons name={icon} size={21} color="#202124" />
-      </View>
-      <Text className="ml-3 min-w-0 flex-1 text-xl font-extrabold leading-7 tracking-normal text-[#202124]">
-        {title}
-      </Text>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  heroTitle: {
+    marginTop: Spacing.lg,
+  },
+  heroBody: {
+    marginTop: Spacing.md,
+  },
+  section: {
+    marginTop: Spacing.lg,
+  },
+  heading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  headingText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  paragraphs: {
+    marginTop: Spacing.lg,
+    gap: Spacing.md,
+  },
+  paragraph: {
+    marginTop: Spacing.lg,
+  },
+  emailChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: Spacing.sm,
+    marginTop: Spacing.lg,
+    minHeight: 44,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.pill,
+  },
+});
