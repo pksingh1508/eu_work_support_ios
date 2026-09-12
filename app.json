@@ -12,6 +12,11 @@
       "icon": "./assets/iosIcons.icon",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "keychain-access-groups": [
+          "$(AppIdentifierPrefix)ios.euworksupport.app"
+        ]
       }
     },
     "android": {

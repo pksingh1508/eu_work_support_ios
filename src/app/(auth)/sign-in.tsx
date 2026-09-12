@@ -1,4 +1,4 @@
-import { useSignIn } from "@clerk/expo";
+import { useAuth, useSignIn } from "@clerk/expo";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -36,6 +36,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
 
 export default function SignInScreen() {
   const { signIn } = useSignIn();
+  const { isLoaded } = useAuth();
   const router = useRouter();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string | string[] }>();
   const [emailAddress, setEmailAddress] = useState("");
@@ -140,6 +141,11 @@ export default function SignInScreen() {
       return;
     }
 
+    if (!isLoaded) {
+      setError("Sign-in could not start. Please close and reopen the app, then try again.");
+      return;
+    }
+
     setError(null);
     setUnverifiedEmail(null);
     setSecondFactorMethod(null);
@@ -161,7 +167,7 @@ export default function SignInScreen() {
       const { error: signInError } = await withTimeout(
         signIn.password({ emailAddress: normalizedEmail, password }),
         CLERK_SIGN_IN_TIMEOUT_MS,
-        "Clerk did not respond. Check that Native API and email/password login are enabled in Clerk.",
+        "Sign-in took too long. Check your connection and try again.",
       );
 
       if (signInError) {

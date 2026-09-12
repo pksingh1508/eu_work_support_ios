@@ -228,6 +228,14 @@ If login verification always fails, confirm that `is_email_pro_user` exists in S
 
 If the app throws a missing environment variable error, check `src/lib/env.ts` and confirm every required value exists in `.env`.
 
+### iOS Login Times Out or Clerk Never Loads
+
+Clerk saves its client token with `expo-secure-store`. An iOS build without Keychain entitlements can fail during initialization with `ERR_KEY_CHAIN` / "A required entitlement isn't present", even when the same account works on Android.
+
+The app-specific Keychain access group is configured in `app.json`. Regenerate the native iOS project after entitlement changes (`pnpm exec expo prebuild --platform ios --no-install`), then rebuild and reinstall the app; Metro reloads cannot update native entitlements.
+
+Keep code signing enabled for simulator builds. If building locally without an Apple development certificate, use simulator ad-hoc signing with `xcodebuild -sdk iphonesimulator CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES` together with the workspace, scheme, and simulator destination. Do not use `CODE_SIGNING_ALLOWED=NO` to work around certificate errors: that can leave Keychain unavailable.
+
 ### Login Redirects to Verify
 
 This is expected when `is_email_pro_user(email)` returns `false`. Verify that the email exists in Supabase and its `user_plan` is `PRO`.
