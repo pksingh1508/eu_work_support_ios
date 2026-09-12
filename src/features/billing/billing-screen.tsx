@@ -21,8 +21,16 @@ import { useTheme } from "@/hooks/use-theme";
 export function BillingScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { planStatus, isSignedIn, priceLabel, state, purchase, restore, refreshPlan } =
-    usePremiumPurchase();
+  const {
+    planStatus,
+    isSignedIn,
+    isAwaitingActivation,
+    priceLabel,
+    state,
+    purchase,
+    restore,
+    refreshPlan,
+  } = usePremiumPurchase();
 
   const isPremium = planStatus === "pro";
   const isBusy = state !== "idle";
@@ -107,12 +115,14 @@ export function BillingScreen() {
           </Surface>
         </Entrance>
 
-        {state === "activating" ? (
+        {state === "activating" || (isAwaitingActivation && state === "idle") ? (
           <Entrance style={styles.section}>
             <Surface tone="primary" style={styles.activating}>
               <Spinner size={22} />
               <AppText variant="callout" style={styles.activatingText}>
-                Payment confirmed. Activating your Premium access…
+                {state === "activating"
+                  ? "Payment confirmed. Activating your Premium access…"
+                  : "Your App Store purchase was found. Premium is being activated on this account; tap refresh below if it does not appear within a few minutes."}
               </AppText>
             </Surface>
           </Entrance>

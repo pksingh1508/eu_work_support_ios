@@ -1,19 +1,21 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
-import type { PurchasesPackage } from "react-native-purchases";
 
 import { useAuthAccess } from "@/features/auth/access";
 import { authHref } from "@/features/auth/return-to";
 import { BILLING_ROUTE, PREMIUM_PRICE_LABEL } from "@/features/billing/premium";
 import {
-  ensurePurchasesReady,
-  fetchPremiumPackage,
+  fetchPremiumOffer,
   getPurchaseErrorMessage,
   isPurchaseCancelled,
   isPurchasesAvailable,
   purchasePremium,
+  refreshCustomerInfo,
   restorePremium,
+  syncPurchasesUser,
+  usePurchasesStore,
+  type PremiumOffer,
 } from "@/features/billing/purchases";
 import { haptic } from "@/lib/haptics";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
@@ -36,8 +38,9 @@ function delay(ms: number) {
 export function usePremiumPurchase() {
   const router = useRouter();
   const { userId, isSignedIn, planStatus, refreshProfile } = useAuthAccess();
+  const hasStoreEntitlement = usePurchasesStore((state) => state.hasStoreEntitlement);
   const isAvailable = isPurchasesAvailable();
-  const [premiumPackage, setPremiumPackage] = useState<PurchasesPackage | null>(null);
+  const [offer, setOffer] = useState<PremiumOffer | null>(null);
   const [priceLabel, setPriceLabel] = useState(PREMIUM_PRICE_LABEL);
   const [state, setState] = useState<PurchaseState>("idle");
 
@@ -50,15 +53,15 @@ export function usePremiumPurchase() {
 
     (async () => {
       try {
-        await ensurePurchasesReady(userId ?? null);
-        const nextPackage = await fetchPremiumPackage();
+        await syncPurchasesUser(userId ?? null);
+        const nextOffer = await fetchPremiumOffer();
 
-        if (isActive && nextPackage) {
-          setPremiumPackage(nextPackage);
-          setPriceLabel(nextPackage.product.priceString || PREMIUM_PRICE_LABEL);
+        if (isActive && nextOffer) {
+          setOffer(nextOffer);
+          setPriceLabel(nextOffer.priceString || PREMIUM_PRICE_LABEL);
         }
       } catch (error) {
-        console.warn("Unable to load Premium offering", error);
+        console.warn("Unable to load the Premium offer", error);
       }
     })();
 
@@ -126,11 +129,13 @@ export function usePremiumPurchase() {
     setState("purchasing");
 
     try {
-      await ensurePurchasesReady(userId ?? null);
-      const target = premiumPackage ?? (await fetchPremiumPackage());
+      await syncPurchasesUser(userId ?? null);
+      const target = offer ?? (await fetchPremiumOffer());
 
       if (!target) {
-        throw new Error("The Premium product is not available right now. Please try again later.");
+        throw new Error(
+          "The Premium product is not available right now. Please try again later.",
+        );
       }
 
       const unlocked = await purchasePremium(target);
@@ -138,7 +143,7 @@ export function usePremiumPurchase() {
       if (!unlocked) {
         showErrorToast(
           "Purchase not confirmed",
-          "The store did not confirm the purchase. Try restoring in a moment.",
+          "The App Store did not confirm the purchase. Try restoring in a moment.",
         );
         return;
       }
@@ -158,15 +163,7 @@ export function usePremiumPurchase() {
     } finally {
       setState("idle");
     }
-  }, [
-    ensureSignedIn,
-    explainUnavailable,
-    finishUnlock,
-    isAvailable,
-    premiumPackage,
-    state,
-    userId,
-  ]);
+  }, [ensureSignedIn, explainUnavailable, finishUnlock, isAvailable, offer, state, userId]);
 
   const restore = useCallback(async () => {
     if (state !== "idle" || !ensureSignedIn()) {
@@ -181,11 +178,14 @@ export function usePremiumPurchase() {
     setState("restoring");
 
     try {
-      await ensurePurchasesReady(userId ?? null);
+      await syncPurchasesUser(userId ?? null);
       const unlocked = await restorePremium();
 
       if (!unlocked) {
-        showInfoToast("Nothing to restore", "No Premium purchase was found for this Apple ID.");
+        showInfoToast(
+          "Nothing to restore",
+          "No Premium purchase was found for this App Store account.",
+        );
         return;
       }
 
@@ -201,14 +201,26 @@ export function usePremiumPurchase() {
     }
   }, [ensureSignedIn, explainUnavailable, finishUnlock, isAvailable, state, userId]);
 
+  const refreshPlan = useCallback(async () => {
+    if (isAvailable) {
+      refreshCustomerInfo().catch((error) => {
+        console.warn("Unable to refresh purchases", error);
+      });
+    }
+
+    return refreshProfile();
+  }, [isAvailable, refreshProfile]);
+
   return {
     planStatus,
     isSignedIn,
     isAvailable,
+    /** Purchase exists on the App Store account but Supabase has not caught up. */
+    isAwaitingActivation: hasStoreEntitlement && planStatus === "free",
     priceLabel,
     state,
     purchase,
     restore,
-    refreshPlan: refreshProfile,
+    refreshPlan,
   };
 }

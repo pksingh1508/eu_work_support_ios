@@ -10,6 +10,7 @@ import * as ExpoSplashScreen from "expo-splash-screen";
 import { PropsWithChildren, useEffect, useMemo } from "react";
 
 import { AuthAccessProvider, useAuthAccess } from "@/features/auth/access";
+import { PurchasesBridge } from "@/features/billing/purchases-bridge";
 import { useSavedStore } from "@/features/saved/saved-store";
 import { useThemeStore } from "@/features/theme/theme-store";
 import { useTheme } from "@/hooks/use-theme";
@@ -136,6 +137,7 @@ export function AppProviders({ children }: PropsWithChildren) {
         <NavigationThemeProvider>
           <AuthAccessProvider>
             <SavedItemsHydrator />
+            <PurchasesBridge />
             <AuthGate>{children}</AuthGate>
           </AuthAccessProvider>
         </NavigationThemeProvider>

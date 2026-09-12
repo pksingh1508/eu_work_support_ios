@@ -2,14 +2,59 @@ import { Platform } from "react-native";
 import Purchases, {
   LOG_LEVEL,
   type CustomerInfo,
+  type CustomerInfoUpdateListener,
   type PurchasesPackage,
+  type PurchasesStoreProduct,
 } from "react-native-purchases";
+import { create } from "zustand";
 
-import { PREMIUM_ENTITLEMENT_ID, PREMIUM_PACKAGE_ID } from "@/features/billing/premium";
+import {
+  PREMIUM_ENTITLEMENT_ID,
+  PREMIUM_PACKAGE_ID,
+  PREMIUM_PRODUCT_ID,
+} from "@/features/billing/premium";
 import { optionalEnv } from "@/lib/env";
+
+/**
+ * Thin RevenueCat wrapper. RevenueCat talks to StoreKit 2 for us (products,
+ * purchase sheet, receipts, restores) and forwards every entitlement change
+ * to the Supabase webhook, which is what flips `app_users.user_plan`.
+ *
+ * On-device `CustomerInfo` is mirrored into a small store so the UI can react
+ * instantly (e.g. purchase made on another device, refund), while Supabase
+ * stays the source of truth for content access.
+ */
+
+type PurchasesStoreState = {
+  isConfigured: boolean;
+  customerInfo: CustomerInfo | null;
+  /** True when the App Store account owns the Premium entitlement. */
+  hasStoreEntitlement: boolean;
+  setCustomerInfo: (customerInfo: CustomerInfo | null) => void;
+};
+
+export const usePurchasesStore = create<PurchasesStoreState>((set) => ({
+  isConfigured: false,
+  customerInfo: null,
+  hasStoreEntitlement: false,
+  setCustomerInfo: (customerInfo) =>
+    set({
+      customerInfo,
+      hasStoreEntitlement: customerInfo ? hasPremiumEntitlement(customerInfo) : false,
+    }),
+}));
+
+export type PremiumOffer =
+  | { kind: "package"; package: PurchasesPackage; priceString: string }
+  | { kind: "product"; product: PurchasesStoreProduct; priceString: string };
 
 let configuredApiKey: string | null = null;
 let activeAppUserId: string | null = null;
+let isListenerAttached = false;
+
+const onCustomerInfoUpdate: CustomerInfoUpdateListener = (customerInfo) => {
+  usePurchasesStore.getState().setCustomerInfo(customerInfo);
+};
 
 function getApiKey() {
   return Platform.select({
@@ -24,63 +69,115 @@ export function isPurchasesAvailable() {
   return Boolean(getApiKey());
 }
 
+export function hasPremiumEntitlement(customerInfo: CustomerInfo) {
+  return Boolean(customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]);
+}
+
 /**
- * Configures the SDK once and keeps the RevenueCat app user id aligned with
- * the Clerk user id so the webhook can mirror the entitlement into Supabase.
+ * Configures the SDK exactly once per app launch. Safe to call repeatedly.
+ * Returns false when no key is set (purchases disabled in this build).
  */
-export async function ensurePurchasesReady(userId: string | null) {
+export function configurePurchases(userId: string | null) {
   const apiKey = getApiKey();
 
   if (!apiKey) {
     return false;
   }
 
-  if (configuredApiKey !== apiKey) {
-    if (__DEV__) {
-      await Purchases.setLogLevel(LOG_LEVEL.WARN);
-    }
-
-    Purchases.configure({ apiKey, appUserID: userId ?? undefined });
-    configuredApiKey = apiKey;
-    activeAppUserId = userId;
+  if (configuredApiKey === apiKey) {
     return true;
   }
 
-  if (userId && activeAppUserId !== userId) {
-    await Purchases.logIn(userId);
-    activeAppUserId = userId;
+  if (__DEV__) {
+    void Purchases.setLogLevel(LOG_LEVEL.WARN);
   }
 
+  Purchases.configure({ apiKey, appUserID: userId ?? undefined });
+  configuredApiKey = apiKey;
+  activeAppUserId = userId;
+
+  if (!isListenerAttached) {
+    Purchases.addCustomerInfoUpdateListener(onCustomerInfoUpdate);
+    isListenerAttached = true;
+  }
+
+  usePurchasesStore.setState({ isConfigured: true });
   return true;
 }
 
-export async function fetchPremiumPackage(): Promise<PurchasesPackage | null> {
-  const offerings = await Purchases.getOfferings();
-  const offering = offerings.current;
-
-  if (!offering) {
-    return null;
+/**
+ * Keeps the RevenueCat app user id equal to the Clerk user id (so the
+ * webhook can map purchases to `app_users`) and logs out on sign-out.
+ */
+export async function syncPurchasesUser(userId: string | null, email?: string | null) {
+  if (!configurePurchases(userId)) {
+    return;
   }
 
-  return (
-    offering.lifetime ??
-    offering.availablePackages.find((item) => item.identifier === PREMIUM_PACKAGE_ID) ??
-    offering.availablePackages[0] ??
-    null
-  );
+  if (userId && activeAppUserId !== userId) {
+    const { customerInfo } = await Purchases.logIn(userId);
+    activeAppUserId = userId;
+    usePurchasesStore.getState().setCustomerInfo(customerInfo);
+  } else if (!userId && activeAppUserId) {
+    const customerInfo = await Purchases.logOut();
+    activeAppUserId = null;
+    usePurchasesStore.getState().setCustomerInfo(customerInfo);
+  } else if (userId) {
+    await refreshCustomerInfo();
+  }
+
+  if (userId && email) {
+    await Purchases.setEmail(email);
+  }
 }
 
-export function hasPremiumEntitlement(customerInfo: CustomerInfo) {
-  return Boolean(customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]);
+export async function refreshCustomerInfo() {
+  const customerInfo = await Purchases.getCustomerInfo();
+  usePurchasesStore.getState().setCustomerInfo(customerInfo);
+  return customerInfo;
 }
 
-export async function purchasePremium(pkg: PurchasesPackage) {
-  const { customerInfo } = await Purchases.purchasePackage(pkg);
+/**
+ * Finds the Premium offer: the lifetime package of the current offering, or
+ * (when offerings are not configured yet) the store product itself.
+ */
+export async function fetchPremiumOffer(): Promise<PremiumOffer | null> {
+  const offerings = await Purchases.getOfferings();
+  const offering = offerings.current;
+  const pkg =
+    offering?.lifetime ??
+    offering?.availablePackages.find((item) => item.identifier === PREMIUM_PACKAGE_ID) ??
+    offering?.availablePackages.find(
+      (item) => item.product.identifier === PREMIUM_PRODUCT_ID,
+    ) ??
+    null;
+
+  if (pkg) {
+    return { kind: "package", package: pkg, priceString: pkg.product.priceString };
+  }
+
+  const [product] = await Purchases.getProducts([PREMIUM_PRODUCT_ID]);
+
+  if (product) {
+    return { kind: "product", product, priceString: product.priceString };
+  }
+
+  return null;
+}
+
+export async function purchasePremium(offer: PremiumOffer) {
+  const { customerInfo } =
+    offer.kind === "package"
+      ? await Purchases.purchasePackage(offer.package)
+      : await Purchases.purchaseStoreProduct(offer.product);
+
+  usePurchasesStore.getState().setCustomerInfo(customerInfo);
   return hasPremiumEntitlement(customerInfo);
 }
 
 export async function restorePremium() {
   const customerInfo = await Purchases.restorePurchases();
+  usePurchasesStore.getState().setCustomerInfo(customerInfo);
   return hasPremiumEntitlement(customerInfo);
 }
 

@@ -3,6 +3,8 @@ import type { IconName } from "@/components/ui/icon-names";
 /** Fallback price shown before (or without) a store-localised price. */
 export const PREMIUM_PRICE_LABEL = "$59";
 export const PREMIUM_ENTITLEMENT_ID = "premium";
+/** App Store / Google Play product identifier (non-consumable). */
+export const PREMIUM_PRODUCT_ID = "eu_work_support_premium_lifetime";
 /** RevenueCat package identifier for the one-time purchase. */
 export const PREMIUM_PACKAGE_ID = "$rc_lifetime";
 export const BILLING_ROUTE = "/billing" as const;
