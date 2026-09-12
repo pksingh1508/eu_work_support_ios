@@ -1,7 +1,8 @@
-import { PropsWithChildren } from "react";
-import { Text, View } from "react-native";
+import type { PropsWithChildren } from "react";
+import { StyleSheet } from "react-native";
 
-import { CustomLoading } from "@/components/custom-loading";
+import { Screen } from "@/components/ui/screen";
+import { LoadingState } from "@/components/ui/state-views";
 import { useAuthAccess } from "@/features/auth/access";
 import { UnAuthenticated } from "@/features/auth/components/unauthenticated";
 
@@ -14,12 +15,9 @@ export function PremiumGuard({ children, returnTo }: PremiumGuardProps) {
 
   if (!isAuthLoaded || isProfileLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-diplomatic-surface px-5">
-        <CustomLoading />
-        <Text className="mt-4 text-base font-bold tracking-normal text-diplomatic-secondaryText">
-          Loading account...
-        </Text>
-      </View>
+      <Screen contentContainerStyle={styles.center}>
+        <LoadingState label="Loading your account…" />
+      </Screen>
     );
   }
 
@@ -29,3 +27,9 @@ export function PremiumGuard({ children, returnTo }: PremiumGuardProps) {
 
   return <>{children}</>;
 }
+
+const styles = StyleSheet.create({
+  center: {
+    justifyContent: "center",
+  },
+});
