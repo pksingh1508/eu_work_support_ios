@@ -28,27 +28,27 @@ Why RevenueCat instead of talking to StoreKit directly:
 
 Identifiers used everywhere (keep them identical in every dashboard):
 
-| Item | Value |
-| --- | --- |
+| Item                                  | Value                              |
+| ------------------------------------- | ---------------------------------- |
 | App Store product id (non-consumable) | `eu_work_support_premium_lifetime` |
-| RevenueCat entitlement id | `premium` |
-| RevenueCat offering | `default` (current) |
-| RevenueCat package | Lifetime (`$rc_lifetime`) |
-| Price | USD 59, one-time |
-| iOS bundle id | `ios.euworksupport.app` |
+| RevenueCat entitlement id             | `premium`                          |
+| RevenueCat offering                   | `default` (current)                |
+| RevenueCat package                    | Lifetime (`$rc_lifetime`)          |
+| Price                                 | USD 59, one-time                   |
+| iOS bundle id                         | `ios.euworksupport.app`            |
 
 What is already in the repo:
 
-| Piece | Where |
-| --- | --- |
-| SDK install (`react-native-purchases` 10.x) | `package.json`, pods installed in `ios/` |
+| Piece                                                                                     | Where                                                                                        |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| SDK install (`react-native-purchases` 10.x)                                               | `package.json`, pods installed in `ios/`                                                     |
 | SDK lifecycle: configure at launch, `logIn(clerkUserId)` / `logOut`, entitlement listener | `src/features/billing/purchases.ts`, `purchases-bridge.tsx` (mounted in `app-providers.tsx`) |
-| Purchase / restore flow with post-purchase activation polling | `src/features/billing/use-premium-purchase.ts` |
-| Billing tab UI, feature list, price, Restore, Terms/Privacy links | `src/features/billing/billing-screen.tsx` |
-| Free-plan paywall + "Buy Premium" on country, guide, Search and Saved | `src/features/billing/paywall-card.tsx`, `premium-gate.ts` |
-| Webhook that mirrors purchases into Supabase and sets `user_plan` | `supabase/functions/revenuecat-webhook/index.ts` |
-| StoreKit configuration for simulator testing | `store/EUWorkSupport.storekit` |
-| Env keys | `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` |
+| Purchase / restore flow with post-purchase activation polling                             | `src/features/billing/use-premium-purchase.ts`                                               |
+| Billing tab UI, feature list, price, Restore, Terms/Privacy links                         | `src/features/billing/billing-screen.tsx`                                                    |
+| Free-plan paywall + "Buy Premium" on country, guide, Search and Saved                     | `src/features/billing/paywall-card.tsx`, `premium-gate.ts`                                   |
+| Webhook that mirrors purchases into Supabase and sets `user_plan`                         | `supabase/functions/revenuecat-webhook/index.ts`                                             |
+| StoreKit configuration for simulator testing                                              | `store/EUWorkSupport.storekit`                                                               |
+| Env keys                                                                                  | `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`               |
 
 ## 2. Apple Developer and App Store Connect
 
@@ -56,11 +56,11 @@ What is already in the repo:
    Fill in banking, tax forms and contact info. Until this is "Active", products
    never load and StoreKit returns an empty list.
 2. **Enable In-App Purchase on the App ID.** Apple Developer → Identifiers →
-   `ios.euworksupport.app` → Capabilities → check *In-App Purchase*. Xcode adds
+   `ios.euworksupport.app` → Capabilities → check _In-App Purchase_. Xcode adds
    the capability automatically when you archive with an App Store profile;
    no entitlement file is needed for StoreKit.
-3. **Create the product.** App Store Connect → your app → *In-App Purchases* →
-   *+* → **Non-Consumable**.
+3. **Create the product.** App Store Connect → your app → _In-App Purchases_ →
+   _+_ → **Non-Consumable**.
    - Reference name: `Premium (Lifetime)`
    - Product ID: `eu_work_support_premium_lifetime` (cannot be changed later)
    - Price schedule: pick the USD 59 price point; let Apple auto-generate other
@@ -73,47 +73,49 @@ What is already in the repo:
      state." The product must show status **Ready to Submit**.
    - Availability: all territories where the app is sold.
 4. **Attach the product to the next app version.** On the version page, section
-   *In-App Purchases and Subscriptions*, add the product. Apple only reviews a
+   _In-App Purchases and Subscriptions_, add the product. Apple only reviews a
    product together with a binary the first time.
 5. **Create an In-App Purchase API key** (StoreKit 2 server validation).
-   App Store Connect → Users and Access → *Integrations* → *In-App Purchase* →
-   *Generate*. Download the `.p8` once, note the Key ID and Issuer ID. You
+   App Store Connect → Users and Access → _Integrations_ → _In-App Purchase_ →
+   _Generate_. Download the `.p8` once, note the Key ID and Issuer ID. You
    will upload it to RevenueCat.
-6. **Create a sandbox tester.** Users and Access → *Sandbox* → *Testers* → *+*.
-   Use a fresh email; on a test device sign into it under *Settings → App
-   Store → Sandbox Account*. Never sign into the real App Store with it.
+6. **Create a sandbox tester.** Users and Access → _Sandbox_ → _Testers_ → _+_.
+   Use a fresh email; on a test device sign into it under _Settings → App
+   Store → Sandbox Account_. Never sign into the real App Store with it.
 
 ## 3. RevenueCat
 
 1. Create a project at <https://app.revenuecat.com> named **EU Work Support**.
-2. **Add the iOS app.** Project settings → *Apps* → *+ New* → App Store →
-   bundle id `ios.euworksupport.app`. Under *In-App Purchase Key configuration*
+2. **Add the iOS app.** Project settings → _Apps_ → _+ New_ → App Store →
+   bundle id `ios.euworksupport.app`. Under _In-App Purchase Key configuration_
    upload the `.p8` from step 2.5 with its Key ID and Issuer ID. Under
-   *App-Specific Shared Secret* paste the secret from App Store Connect →
-   your app → *App Information* → *App-Specific Shared Secret* (needed for
+   _App-Specific Shared Secret_ paste the secret from App Store Connect →
+   your app → _App Information_ → _App-Specific Shared Secret_ (needed for
    legacy receipt validation).
-3. **Import the product.** *Products* → *+ New* (or *Import*) → store
+3. **Import the product.** _Products_ → _+ New_ (or _Import_) → store
    product `eu_work_support_premium_lifetime`.
-4. **Create the entitlement.** *Entitlements* → *+ New* → identifier
+4. **Create the entitlement.** _Entitlements_ → _+ New_ → identifier
    `premium` → attach the product.
-5. **Create the offering.** *Offerings* → the default offering `default` →
-   *+ Add package* → type **Lifetime** (identifier `$rc_lifetime`) → attach
+5. **Create the offering.** _Offerings_ → the default offering `default` →
+   _+ Add package_ → type **Lifetime** (identifier `$rc_lifetime`) → attach
    the product. Make sure `default` is marked **Current**.
-6. **Copy the public SDK key.** Project settings → *API keys* → the iOS
-   *Public app-specific API key* (starts with `appl_`). Never use a secret key
+6. **Copy the public SDK key.** Project settings → _API keys_ → the iOS
+   _Public app-specific API key_ (starts with `appl_`). Never use a secret key
    in the app.
-7. **Configure the webhook.** Project settings → *Integrations* → *Webhooks* →
-   *+ New*.
+7. **Configure the webhook.** Project settings → _Integrations_ → _Webhooks_ →
+   _+ New_.
    - URL: `https://<PROJECT_REF>.supabase.co/functions/v1/revenuecat-webhook`
    - Authorization header value: `Bearer <REVENUECAT_WEBHOOK_SECRET>` (generate
      a long random string, e.g. `openssl rand -hex 32`, and keep it for the
      Supabase secret in section 4).
-   - Environment: *Production* for the live project. If you want sandbox
-     purchases to unlock content in a staging Supabase project, set
-     `REVENUECAT_ALLOW_SANDBOX=true` there (never in production).
+   - Environment: include **sandbox as well as production** events. Sandbox
+     purchases (your sandbox testers, TestFlight users and Apple's reviewers)
+     arrive with `environment: "SANDBOX"`, and the function ignores them
+     unless the Supabase secret `REVENUECAT_ALLOW_SANDBOX=true` is set.
+     Section 10.1 explains when to set it.
    - Events: leave all enabled.
-8. Optional but recommended: Project settings → *Apps* → iOS app →
-   *StoreKit 2* enabled (default for new projects).
+8. Optional but recommended: Project settings → _Apps_ → iOS app →
+   _StoreKit 2_ enabled (default for new projects).
 
 ## 4. Supabase
 
@@ -134,6 +136,7 @@ What is already in the repo:
    ```
 
    The service role used by the webhook is unaffected.
+
 3. **Confirm the content RLS uses `user_plan`.** The deployed policies already
    hide `countries` / `country_documents` rows from `Free` members (that is why
    Free users used to see "Country not found"). Keep it that way; the app now
@@ -149,8 +152,9 @@ What is already in the repo:
 
    `--no-verify-jwt` is required because RevenueCat does not send a Supabase
    JWT; the function checks the `Authorization: Bearer <secret>` header instead.
-5. **Test the webhook.** RevenueCat → Integrations → Webhooks → *Send test
-   event* must return 200 and create a row in `revenuecat_events` with
+
+5. **Test the webhook.** RevenueCat → Integrations → Webhooks → _Send test
+   event_ must return 200 and create a row in `revenuecat_events` with
    `event_type = 'TEST'`. Then run a sandbox purchase (section 6) and confirm
    `app_users.user_plan` becomes `PRO` for that Clerk user.
 
@@ -170,6 +174,7 @@ What is already in the repo:
    (`appl_…`, `goog_…`, or `test_…` for the RevenueCat Test Store) are ignored
    with a console warning; the `pk_test…` placeholders currently in `.env`
    must be replaced.
+
 2. **Rebuild the native app.** `react-native-purchases` is a native module, so
    Expo Go cannot run this app and every existing dev client must be rebuilt:
 
@@ -179,33 +184,35 @@ What is already in the repo:
    ```
 
    For store builds use EAS (`eas build --platform ios --profile production`).
-3. **Optional: StoreKit configuration for the simulator.** In Xcode open
-   `ios/EUWorkSupport.xcworkspace`, drag `store/EUWorkSupport.storekit` into the
-   project (do not copy), then *Product → Scheme → Edit Scheme → Run → Options
-   → StoreKit Configuration* → select the file. The simulator then shows the
-   real payment sheet with a fake $59 product, no sandbox account needed. To
-   keep it in sync with App Store Connect later, use *Editor → Sync with App
-   Store Connect* on the file. RevenueCat still needs the product in its
-   dashboard to return an offering; if it does not, the app falls back to
-   loading the product by id.
+
+3. **Optional: StoreKit configuration for the simulator.**
+   `store/EUWorkSupport.storekit` lets the simulator show the real payment
+   sheet with a local $59 product and no Apple account. It only applies when
+   the app is launched from Xcode with the file selected in the scheme, and
+   RevenueCat can only validate those locally signed transactions after you
+   upload the file's public certificate to the RevenueCat app settings.
+   Section 10.3 has the exact steps. Without the file selected, the simulator
+   talks to Apple's real sandbox and asks for an Apple Account at purchase
+   time, which is not a supported path on the simulator.
 4. **Do not commit `.env`.** `.env.example` documents the variables.
 
 ## 6. Testing checklist
 
-- [ ] Simulator with the StoreKit configuration: Billing tab shows "$59.00",
-      Buy Premium opens the sheet, confirming shows "Activating…" then
-      "Welcome to Premium" (only when the webhook and Supabase are wired; with
-      the StoreKit file alone the entitlement is granted locally, the plan
-      stays Free and the "purchase found, activating" notice appears, which is
-      expected).
-- [ ] Real device, sandbox tester signed in under *Settings → App Store →
-      Sandbox Account*: purchase succeeds, RevenueCat customer shows the
-      entitlement, `app_users.user_plan = 'PRO'`, country pages open.
+- [ ] Simulator with the StoreKit configuration (section 10.3): Billing tab
+      shows "$59.00", Buy Premium opens a sheet marked "[Environment: Xcode]",
+      confirming shows "Activating…" then "Welcome to Premium". This needs the
+      StoreKit certificate uploaded to RevenueCat and
+      `REVENUECAT_ALLOW_SANDBOX=true`; otherwise the purchase fails with a
+      receipt error, or the plan stays Free and the "purchase found,
+      activating" notice appears.
+- [ ] Real device, sandbox tester signed in (section 10.2): the sheet says
+      "[Environment: Sandbox]", purchase succeeds, RevenueCat customer shows
+      the entitlement, `app_users.user_plan = 'PRO'`, country pages open.
 - [ ] Delete and reinstall the app, log in, tap **Restore purchase**: Premium
       comes back without paying again.
 - [ ] Log in with the same Clerk account on a second device: Premium is
       active there too (RevenueCat user id = Clerk user id).
-- [ ] Refund the sandbox purchase (RevenueCat customer page → *Refund* or
+- [ ] Refund the sandbox purchase (RevenueCat customer page → _Refund_ or
       App Store Connect sandbox refund): webhook sends `CANCELLATION` /
       `EXPIRATION`, `user_plan` returns to `Free`, paywall reappears.
 - [ ] Airplane mode: Buy Premium shows a clear error toast, nothing hangs.
@@ -237,13 +244,193 @@ key. No app code changes are needed.
 
 ## 9. Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| "Purchases unavailable" alert | `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` missing, not an `appl_…` key, or the app was not rebuilt | Set the real public key, rebuild the dev client |
-| Red "[RevenueCat] There was a credential issue" box in development | The key is present but rejected by RevenueCat (wrong project or a secret key) | Copy the *public app-specific* key from Project settings → API keys |
-| "The Premium product is not available right now" | Paid Apps agreement not active, product not *Ready to Submit*, or product not attached to the RevenueCat offering | Check App Store Connect status, then the RevenueCat offering |
-| Purchase succeeds but the app still says Free | Webhook not reaching Supabase, wrong secret, or event is `SANDBOX` in production | RevenueCat → Webhooks → check delivery log and response code; use *Send test event* |
-| Webhook returns 401 | Authorization header does not match `REVENUECAT_WEBHOOK_SECRET` | Re-set the secret on both sides |
-| Webhook returns 500 "Unable to upsert entitlement" | Billing tables missing or the unique constraint `(clerk_user_id, entitlement_id)` absent | Run section 6 of `supabase.md` |
-| Restore says "Nothing to restore" | Different App Store account, or the sandbox purchase was on another Apple ID | Sign in with the purchasing Apple ID |
-| Simulator shows no products | No StoreKit configuration selected in the scheme | Section 5.3 |
+| Symptom                                                                                                      | Likely cause                                                                                                            | Fix                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| "Purchases unavailable" alert                                                                                | `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` missing, not an `appl_…` key, or the app was not rebuilt                           | Set the real public key, rebuild the dev client                                                                                   |
+| Red "[RevenueCat] There was a credential issue" box in development                                           | The key is present but rejected by RevenueCat (wrong project or a secret key)                                           | Copy the _public app-specific_ key from Project settings → API keys                                                               |
+| "The Premium product is not available right now"                                                             | Paid Apps agreement not active, product not _Ready to Submit_, or product not attached to the RevenueCat offering       | Check App Store Connect status, then the RevenueCat offering                                                                      |
+| Purchase succeeds but the app still says Free                                                                | Webhook not reaching Supabase, wrong secret, or event is `SANDBOX` in production                                        | RevenueCat → Webhooks → check delivery log and response code; use _Send test event_                                               |
+| Webhook returns 401                                                                                          | Authorization header does not match `REVENUECAT_WEBHOOK_SECRET`                                                         | Re-set the secret on both sides                                                                                                   |
+| Webhook returns 500 "Unable to upsert entitlement"                                                           | Billing tables missing or the unique constraint `(clerk_user_id, entitlement_id)` absent                                | Run section 6 of `supabase.md`                                                                                                    |
+| Restore says "Nothing to restore"                                                                            | Different App Store account, or the sandbox purchase was on another Apple ID                                            | Sign in with the purchasing Apple ID                                                                                              |
+| Simulator shows no products                                                                                  | No StoreKit configuration selected in the scheme                                                                        | Section 10.3                                                                                                                      |
+| Simulator shows "Sign in to Apple Account" when tapping Buy Premium                                          | No StoreKit configuration selected, so the simulator went to Apple's real sandbox, which Apple only supports on devices | Cancel, then use section 10.3 (simulator) or 10.2 (device)                                                                        |
+| Red "[RevenueCat] 🍎‼️ Purchase was cancelled." console error after Cancel                                   | The SDK logs a dismissed sheet at ERROR level and its default handler calls `console.error`                             | Fixed: `purchases.ts` registers its own log handler before `configure()`, drops cancellations and downgrades the rest to warnings |
+| Purchase succeeds but the app shows "Your App Store purchase was found. Premium is being activated…" forever | The event was `SANDBOX` and `REVENUECAT_ALLOW_SANDBOX` is unset, or the RevenueCat webhook only sends production events | Section 10.1                                                                                                                      |
+| "Purchase failed" with a receipt or "invalid" message on the simulator with the StoreKit file                | The StoreKit public certificate is not uploaded to RevenueCat                                                           | Section 10.3, step 4                                                                                                              |
+
+## 10. Sandbox purchase test, step by step
+
+### Simulator or a real iPhone?
+
+| You want to                                                                               | Use                                            | Apple account  | What it proves                                                                                 |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------- |
+| Click through the paywall, the payment sheet and the "Welcome to Premium" flow quickly    | Simulator + StoreKit configuration file (10.3) | None           | UI and app logic. RevenueCat validates the local transaction once its certificate is uploaded. |
+| The real end-to-end test: App Store → RevenueCat → webhook → Supabase `user_plan = 'PRO'` | Physical iPhone + sandbox tester (10.2)        | Sandbox tester | Exactly what App Review will do. Run it at least once before submitting.                       |
+| The RevenueCat and webhook chain from the simulator with zero App Store setup             | Simulator + RevenueCat Test Store key (10.4)   | None           | Backend wiring, not Apple.                                                                     |
+
+The "Sign in to Apple Account" dialog you saw on the simulator means the app
+got further than you might think: the product loaded from App Store Connect
+(so the Paid Apps agreement, the product and the RevenueCat offering are
+fine) and StoreKit asked for an account to charge. Apple only documents the
+sandbox for real devices (development-signed builds and TestFlight). On the
+simulator that dialog is unreliable (repeated prompts, "Cannot connect to
+App Store"), so do not type the sandbox tester into it. Tap Cancel (the app
+treats that as "no purchase" and stays quiet) and use one of the routes below.
+
+### 10.1 One-time preparation (needed for every route)
+
+1. **Create a sandbox tester.** App Store Connect → Users and Access →
+   _Sandbox_ → _Testers_ → _+_. Use an email that is not already an Apple
+   Account (a Gmail `+sandbox` alias works), set the region to **United
+   States** so prices show as `$59.00`, and write the password down; it cannot
+   be recovered. Never sign into the real App Store with it.
+2. **Let sandbox events unlock content.** Every sandbox, TestFlight, Test
+   Store _and App Review_ purchase reaches the webhook with
+   `environment: "SANDBOX"`, and `revenuecat-webhook` ignores those unless
+   this secret is set:
+
+   ```bash
+   supabase secrets set REVENUECAT_ALLOW_SANDBOX=true
+   ```
+
+   Secrets apply without a redeploy; if the next event still shows
+   `ignored: "sandbox event"` in the RevenueCat delivery log, run
+   `supabase functions deploy revenuecat-webhook --no-verify-jwt` once more.
+   Also open RevenueCat → Integrations → Webhooks → your webhook and make sure
+   _Environment_ includes sandbox, not production only.
+
+   Keep the secret on at least until Apple approves the app: reviewers buy
+   with a sandbox account, and if their purchase never unlocks content the
+   IAP is rejected. Leaving it on permanently is low risk, because only
+   sandbox testers you create (and Apple) can produce sandbox events for
+   this app.
+
+3. **Use a Free test account.** Log into the app with a Clerk account whose
+   `app_users.user_plan` is `Free` (check in the Supabase table editor), so
+   you can watch it flip to `PRO`.
+
+### 10.2 Route A: physical iPhone + sandbox tester (the real test)
+
+Requirements: an iPhone on iOS 16 or newer, a USB cable, _Developer Mode_
+enabled on the phone (Settings → Privacy & Security → Developer Mode, then
+restart), and Xcode signed into your Apple Developer team (Xcode → Settings →
+Accounts).
+
+1. **Install the development build on the phone.**
+
+   ```bash
+   npx expo run:ios --device
+   ```
+
+   Pick the iPhone in the list. Xcode's automatic signing registers the
+   device and creates a development profile. If it fails with a signing
+   error, open `ios/EUWorkSupport.xcworkspace`, select the _EUWorkSupport_
+   target → _Signing & Capabilities_ → choose your Team, then run the command
+   again. Leave Metro running; the phone must be on the same Wi-Fi as the Mac.
+   `ios/` is not committed, so this selection is local and is lost after
+   `npx expo prebuild --clean`.
+
+   No cable? Register the phone once with `eas device:create`, build with
+   `eas build --profile development --platform ios`, install it from the link
+   EAS prints, then start `npx expo start` and open the project from the dev
+   client.
+
+2. **Sign into the sandbox on the phone.** iOS 18 and newer: Settings →
+   _Developer_ → _Sandbox Apple Account_ → _Sign In_ with the tester from
+   10.1. iOS 13 to 17: Settings → _App Store_ → _Sandbox Account_. If the row
+   is missing, skip this step: the phone asks you to sign in the first time
+   you tap Buy Premium, and you enter the sandbox tester there (never your
+   real Apple ID). After that the row appears and shows
+   "[Environment: Sandbox]".
+3. **Buy.** In the app log in with the Free test account → Billing tab. The
+   price should read `$59.00` (it comes from App Store Connect). Tap **Buy
+   Premium**. The sheet is labelled "[Environment: Sandbox]"; confirm with
+   Face ID or the tester password. Nothing is charged.
+4. **Watch the activation.** The button shows "Payment confirmed. Activating
+   your Premium access…" while the app polls the profile for 15 seconds. You
+   should get the "Welcome to Premium" toast and the country pages open. If
+   you get "Payment received … will appear within a few minutes" instead, the
+   webhook did not flip the plan; go to step 5.
+5. **Verify the chain.**
+   - RevenueCat → _Customers_ → search the Clerk user id (`user_…`): the
+     `premium` entitlement is active and marked sandbox.
+   - RevenueCat → _Integrations_ → _Webhooks_ → delivery log: the
+     `NON_RENEWING_PURCHASE` event returned `200` (a body containing
+     `ignored` means step 10.1.2 is missing).
+   - Supabase: a row in `revenuecat_events`, a row in
+     `subscription_entitlements`, and `app_users.user_plan = 'PRO'`.
+6. **Restore.** Delete the app, install it again, log in with the same Clerk
+   account, tap **Restore purchase** → Premium comes back with no payment.
+   Buying the same product again shows Apple's "You've already purchased
+   this" sheet, which is correct for a non-consumable.
+7. **Reset for another run.** App Store Connect → Users and Access →
+   _Sandbox_ → _Testers_ → your tester → _Clear Purchase History_; delete the
+   customer in RevenueCat (_Customers_ → the user → _Delete_); in the
+   Supabase SQL editor:
+
+   ```sql
+   update public.app_users set user_plan = 'Free'
+   where clerk_user_id = 'user_xxxxxxxx';
+   ```
+
+   Then delete the app from the phone and install it again.
+
+TestFlight also uses the sandbox: on the phone sign out of _Settings → your
+name → Media & Purchases_, sign in under _Settings → Developer → Sandbox Apple
+Account_, then buy inside the TestFlight build. Same checks as above.
+
+### 10.3 Route B: simulator + StoreKit configuration file
+
+The `.storekit` file is applied by Xcode when it launches the app, so this
+route needs Xcode's Run button, not `npx expo run:ios`.
+
+1. Start Metro in a terminal: `npx expo start`. Then `open
+ios/EUWorkSupport.xcworkspace` (run `npx expo prebuild --platform ios`
+   first if the folder is missing).
+2. In Xcode: File → _Add Files to "EUWorkSupport"…_ → pick
+   `store/EUWorkSupport.storekit`, untick _Copy items if needed_, no target
+   membership. Do this again after every `prebuild --clean`; `ios/` is
+   not committed.
+3. Product → Scheme → _Edit Scheme…_ → _Run_ → _Options_ → _StoreKit
+   Configuration_ → `EUWorkSupport.storekit` → Close.
+4. Upload the certificate so RevenueCat accepts the local transactions:
+   select the `.storekit` file in Xcode → _Editor_ → _Save Public
+   Certificate…_ → save it anywhere → RevenueCat → Project settings → _Apps_
+   → the iOS app → expand _StoreKit testing framework_ → upload the `.cer`.
+   Skip this and the purchase fails with a receipt error.
+5. Press ▶︎ in Xcode with an iPhone simulator selected. The debug build
+   connects to the Metro you started in step 1.
+6. Log in with the Free test account → Billing → **Buy Premium**. The sheet
+   shows `$59.00` and "[Environment: Xcode]" and asks for no Apple account.
+   Confirm. RevenueCat validates the transaction, the webhook receives a
+   sandbox event, and with `REVENUECAT_ALLOW_SANDBOX=true` the plan flips to
+   `PRO` and the "Welcome to Premium" toast appears.
+7. To buy again: Xcode → _Debug_ → _StoreKit_ → _Manage Transactions…_ →
+   select the transaction → delete or refund it, and reset the RevenueCat
+   customer and `user_plan` as in 10.2 step 7.
+
+### 10.4 Route C: RevenueCat Test Store (optional, simulator, no Apple setup)
+
+1. RevenueCat → Project settings → _Apps and providers_ → _Test
+   configuration_ → create a Test Store and copy its `test_…` API key.
+2. Under that Test Store add a product with id
+   `eu_work_support_premium_lifetime` (one-time purchase, price 59 USD) and
+   attach it to the `premium` entitlement and the `default` offering, the
+   same way as the App Store product in section 3.
+3. In `.env` set `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=test_…` and restart
+   Metro with `npx expo start --clear`. No native rebuild is needed; the key
+   is inlined into the JS bundle.
+4. Tap **Buy Premium**: RevenueCat shows its own test purchase sheet, records
+   the purchase as sandbox data, and the webhook and Supabase steps run
+   exactly as in 10.2 step 5.
+5. Put the `appl_…` key back before any TestFlight or App Store build. Never
+   ship a `test_` key.
+
+### 10.5 Before you submit
+
+- `.env` and the EAS production environment hold the `appl_…` key.
+- `REVENUECAT_ALLOW_SANDBOX=true` stays set through App Review (10.1.2).
+- The RevenueCat webhook sends both sandbox and production events.
+- The StoreKit configuration file only affects Xcode runs; App Store and
+  TestFlight builds ignore it, so nothing needs to be removed.

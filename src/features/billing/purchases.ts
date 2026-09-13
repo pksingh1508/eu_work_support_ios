@@ -3,6 +3,7 @@ import Purchases, {
   LOG_LEVEL,
   type CustomerInfo,
   type CustomerInfoUpdateListener,
+  type LogHandler,
   type PurchasesPackage,
   type PurchasesStoreProduct,
 } from "react-native-purchases";
@@ -54,6 +55,31 @@ let isListenerAttached = false;
 
 const onCustomerInfoUpdate: CustomerInfoUpdateListener = (customerInfo) => {
   usePurchasesStore.getState().setCustomerInfo(customerInfo);
+};
+
+/**
+ * The SDK logs a user backing out of the App Store sheet at ERROR level
+ * ("🍎‼️ Purchase was cancelled."), and its default handler forwards every
+ * ERROR log to `console.error`, which LogBox renders as a red "Console Error"
+ * screen in development. Cancelling is not an error for us (see
+ * `isPurchaseCancelled`), so route SDK logs ourselves: drop cancellations,
+ * keep real problems visible as warnings, stay quiet about the rest in release.
+ */
+const USER_CANCELLED_LOG = /purchase was cancell?ed|purchasecancellederror/i;
+
+const onSdkLog: LogHandler = (level, message) => {
+  if (USER_CANCELLED_LOG.test(message)) {
+    return;
+  }
+
+  if (level === LOG_LEVEL.ERROR || level === LOG_LEVEL.WARN) {
+    console.warn(`[RevenueCat] ${message}`);
+    return;
+  }
+
+  if (__DEV__) {
+    console.log(`[RevenueCat] ${message}`);
+  }
 };
 
 /** RevenueCat public SDK keys: `appl_` (App Store), `goog_` (Play), `test_` (Test Store). */
@@ -108,6 +134,10 @@ export function configurePurchases(userId: string | null) {
   if (configuredApiKey === apiKey) {
     return true;
   }
+
+  // Must run before configure(): the SDK only installs its console.error
+  // default handler when no custom handler has been registered yet.
+  Purchases.setLogHandler(onSdkLog);
 
   if (__DEV__) {
     void Purchases.setLogLevel(LOG_LEVEL.WARN);
