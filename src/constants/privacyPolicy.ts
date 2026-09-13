@@ -217,14 +217,6 @@ export const privacyPolicy = {
     },
     {
       type: "heading",
-      text: "Children's Privacy",
-    },
-    {
-      type: "paragraph",
-      text: "EU Work Support is not directed to children under 13. We do not knowingly collect personal information from children under 13. If we learn that a child has provided personal information without appropriate consent, we will take steps to delete it.",
-    },
-    {
-      type: "heading",
       text: "International Users",
     },
     {
