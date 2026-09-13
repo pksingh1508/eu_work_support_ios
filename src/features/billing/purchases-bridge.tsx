@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { useAuthAccess } from "@/features/auth/access";
-import { syncPurchasesUser } from "@/features/billing/purchases";
+import { prefetchPremiumOffer, syncPurchasesUser } from "@/features/billing/purchases";
 
 /**
  * Configures RevenueCat at launch and keeps its app user id in step with the
@@ -17,9 +17,11 @@ export function PurchasesBridge() {
       return;
     }
 
-    syncPurchasesUser(userId ?? null, email).catch((error) => {
-      console.warn("Unable to sync the purchases user", error);
-    });
+    syncPurchasesUser(userId ?? null, email)
+      .then(() => prefetchPremiumOffer())
+      .catch((error) => {
+        console.warn("Unable to sync the purchases user", error);
+      });
   }, [email, isAuthLoaded, userId]);
 
   return null;

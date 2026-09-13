@@ -6,7 +6,6 @@ import {
   Picker,
   Section,
   Text,
-  Toggle,
 } from "@expo/ui/swift-ui";
 import { pickerStyle, scrollContentBackground, tag } from "@expo/ui/swift-ui/modifiers";
 import { StyleSheet } from "react-native";
@@ -22,14 +21,12 @@ function isThemePreference(value: unknown): value is ThemePreference {
 }
 
 /**
- * Native SwiftUI settings form: segmented theme picker, system toggle and
- * grouped rows, hosted inside the app's screen chrome.
+ * Native SwiftUI settings form: segmented theme picker and grouped rows,
+ * hosted inside the app's screen chrome.
  */
 export function SettingsForm({
   preference,
   onPreferenceChange,
-  notificationsEnabled,
-  onNotificationsChange,
   onOpenFaq,
   onOpenSupport,
   onOpenPrivacy,
@@ -62,21 +59,6 @@ export function SettingsForm({
               </Text>
             ))}
           </Picker>
-        </Section>
-
-        <Section
-          title="Notifications"
-          footer={<Text>Get notified when a saved guide is updated.</Text>}
-        >
-          <Toggle
-            isOn={notificationsEnabled}
-            label="Guide updates"
-            systemImage="bell.badge"
-            onIsOnChange={(isOn) => {
-              haptic.selection();
-              onNotificationsChange(isOn);
-            }}
-          />
         </Section>
 
         <Section title="Help">

@@ -16,6 +16,7 @@ import { Surface } from "@/components/ui/surface";
 import { TabScreen } from "@/components/ui/tab-screen";
 import { Spacing } from "@/constants/theme";
 import { useAuthAccess } from "@/features/auth/access";
+import { usePremiumPriceLabel } from "@/features/billing/purchases";
 import { useSavedStore } from "@/features/saved/saved-store";
 
 export function ProfileScreen() {
@@ -34,6 +35,12 @@ export function ProfileScreen() {
   const fullName = databaseName || user?.fullName || user?.firstName || "Welcome";
   const imageUrl = profile?.imageUrl ?? user?.imageUrl ?? null;
   const isPro = userPlan === "PRO";
+  const priceLabel = usePremiumPriceLabel();
+  const premiumSubtitle = isPro
+    ? "Lifetime access active"
+    : priceLabel
+      ? `Unlock everything · ${priceLabel} one-time`
+      : "Unlock everything · one-time purchase";
   const version = Constants.expoConfig?.version ?? "1.0.0";
 
   useFocusEffect(
@@ -93,13 +100,13 @@ export function ProfileScreen() {
               icon="crown"
               iconTone={isPro ? "success" : "tertiary"}
               title="Premium"
-              subtitle={isPro ? "Lifetime access active" : "Unlock everything · $59 one-time"}
+              subtitle={premiumSubtitle}
               onPress={go("/billing")}
             />
             <ListRow
               icon="settings"
               title="Settings"
-              subtitle="Appearance and notifications"
+              subtitle="Appearance, help and legal"
               onPress={go("/profile/settings")}
             />
             <ListRow

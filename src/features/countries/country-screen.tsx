@@ -46,7 +46,8 @@ export function CountryScreen() {
   const { userId } = useAuth();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const countrySlug = Array.isArray(slug) ? slug[0] : slug;
-  const { planStatus, isPremium, showPremiumRequired } = usePremiumGate();
+  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck, showPremiumRequired } =
+    usePremiumGate();
   const offlineCountryName = getCountryNameBySlug(countrySlug);
   const requestIdRef = useRef(0);
   const [country, setCountry] = useState<Country | null>(null);
@@ -251,7 +252,18 @@ export function CountryScreen() {
         />
       ) : null}
 
-      {planStatus === "unknown" || (isPremium && isLoading) ? <CountrySkeleton /> : null}
+      {isPlanUnavailable ? (
+        <ErrorState
+          title="Unable to check your plan"
+          message="Check your connection and try again."
+          action={{ label: "Try again", onPress: () => void retryPlanCheck() }}
+          secondaryAction={{ label: "Go back", onPress: () => router.back() }}
+        />
+      ) : null}
+
+      {(planStatus === "unknown" && !isPlanUnavailable) || (isPremium && isLoading) ? (
+        <CountrySkeleton />
+      ) : null}
 
       {isPremium && !isLoading && error ? (
         <ErrorState

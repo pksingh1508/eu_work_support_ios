@@ -1,6 +1,6 @@
 export const termsAndCondition = {
   title: "EU Work Support Terms & Conditions",
-  lastUpdated: "May 26, 2026",
+  lastUpdated: "September 13, 2026",
   blocks: [
     {
       type: "paragraph",
@@ -49,11 +49,27 @@ export const termsAndCondition = {
     },
     {
       type: "heading",
-      text: "4. No Mobile App Payments",
+      text: "4. Premium In-App Purchase",
     },
     {
       type: "paragraph",
-      text: "EU Work Support does not collect payment in the mobile app. If paid services are introduced later, the Terms and Privacy Policy should be updated before launch and reviewed for Apple App Store and Google Play compliance.",
+      text: "The App offers an optional one-time purchase called EU Work Support Premium. Premium unlocks every country guide, visa and work document, search, and saved items. It is a single non-consumable purchase, not a subscription: there is no automatic renewal and no recurring charge.",
+    },
+    {
+      type: "paragraph",
+      text: "Premium is bought through the in-app purchase system of the app store you installed the App from (Apple's In-App Purchase on iOS) and is charged to the payment method on your app store account. The price shown in the App is set by the store for your country or region. EU Work Support never receives or stores your payment card details.",
+    },
+    {
+      type: "paragraph",
+      text: "Premium is linked to the EU Work Support account you are logged into when you buy it. If you reinstall the App or switch devices, log in with the same account and use Restore purchase on the Billing tab. We use RevenueCat to validate purchases and manage Premium access.",
+    },
+    {
+      type: "paragraph",
+      text: "Refunds for app store purchases are handled by the store under its own terms. On iOS, you can request a refund from Apple at reportaproblem.apple.com. EU Work Support cannot issue refunds directly for app store purchases.",
+    },
+    {
+      type: "paragraph",
+      text: "Premium provides access to informational content only. It does not include legal advice, application filing, or any guarantee of a visa or immigration outcome.",
     },
     {
       type: "heading",
@@ -116,7 +132,7 @@ export const termsAndCondition = {
     },
     {
       type: "paragraph",
-      text: "The App may rely on or link to third-party services, including authentication, database, platform, official government, and support services. We are not responsible for third-party websites, services, policies, or content.",
+      text: "The App may rely on or link to third-party services, including authentication, database, purchase and entitlement management, platform, official government, and support services. We are not responsible for third-party websites, services, policies, or content.",
     },
     {
       type: "heading",
@@ -177,14 +193,6 @@ export const termsAndCondition = {
     {
       type: "paragraph",
       text: "For questions about these Terms, contact support@euworksupport.eu.",
-    },
-    {
-      type: "heading",
-      text: "Store Compliance Notes",
-    },
-    {
-      type: "paragraph",
-      text: "These Terms are written to align with marketplace expectations that apps accurately describe their services, avoid misleading users, disclose data handling separately in a privacy policy, and provide account deletion when account creation is supported.",
     },
   ],
 } as const;

@@ -1,15 +1,42 @@
-import { Stack } from "expo-router";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet } from "react-native";
+import { useEffect } from "react";
+import { StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 import { AppProviders } from "@/components/app-providers";
 import { toastConfig } from "@/components/ui/app-toast";
-import { Spacing } from "@/constants/theme";
+import { ErrorState } from "@/components/ui/state-views";
+import { Layout, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { TOAST_DURATION_MS } from "@/lib/toast";
+
+/**
+ * Last line of defence: a render error anywhere in the app shows this
+ * themed screen with a retry instead of a crash or a blank window. It renders
+ * outside the app providers, so it only uses provider-free primitives.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const { colors } = useTheme();
+
+  useEffect(() => {
+    console.warn("Unhandled render error", error);
+  }, [error]);
+
+  return (
+    <SafeAreaView style={[styles.flex, { backgroundColor: colors.background }]}>
+      <View style={styles.errorContent}>
+        <ErrorState
+          title="Something went wrong"
+          message="The app hit an unexpected problem. Try again, or restart the app if it keeps happening."
+          action={{ label: "Try again", onPress: () => void retry() }}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
 
 export default function RootLayout() {
   return (
@@ -77,5 +104,10 @@ function AppToaster() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  errorContent: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: Layout.screenPadding,
   },
 });

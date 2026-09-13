@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { ListGroup } from "@/components/ui/list-group";
 import { ListRow } from "@/components/ui/list-row";
-import { NativeToggle } from "@/components/ui/native-toggle";
 import { Layout, Spacing } from "@/constants/theme";
 import type { SettingsFormProps } from "@/features/settings/settings-form.types";
 import { themePreferenceOptions } from "@/features/theme/theme-store";
@@ -15,8 +14,6 @@ import { themePreferenceOptions } from "@/features/theme/theme-store";
 export function SettingsForm({
   preference,
   onPreferenceChange,
-  notificationsEnabled,
-  onNotificationsChange,
   onOpenFaq,
   onOpenSupport,
   onOpenPrivacy,
@@ -31,20 +28,6 @@ export function SettingsForm({
             options={themePreferenceOptions}
             value={preference}
             onChange={onPreferenceChange}
-          />
-        </View>
-      </ListGroup>
-
-      <ListGroup
-        title="Notifications"
-        footer="Get notified when a saved guide is updated."
-        style={styles.group}
-      >
-        <View style={styles.row}>
-          <NativeToggle
-            value={notificationsEnabled}
-            onValueChange={onNotificationsChange}
-            label="Guide updates"
           />
         </View>
       </ListGroup>

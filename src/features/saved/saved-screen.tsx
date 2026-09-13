@@ -34,7 +34,7 @@ const filterOptions: readonly FilterOption<SavedFilter>[] = [
 export function SavedScreen() {
   const router = useRouter();
   const { userId } = useAuth();
-  const { planStatus, isPremium } = usePremiumGate();
+  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck } = usePremiumGate();
   const countries = useSavedStore((state) => state.countries);
   const documents = useSavedStore((state) => state.documents);
   const status = useSavedStore((state) => state.status);
@@ -147,6 +147,12 @@ export function SavedScreen() {
 
   const listEmpty = planStatus === "free" ? (
     <PaywallCard feature="save" compact />
+  ) : isPlanUnavailable ? (
+    <ErrorState
+      title="Unable to check your plan"
+      message="Check your connection and try again."
+      action={{ label: "Try again", onPress: () => void retryPlanCheck() }}
+    />
   ) : planStatus === "unknown" || isLoading ? (
     <LoadingState label="Loading saved guides…" />
   ) : hasError ? (

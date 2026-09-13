@@ -1,10 +1,10 @@
 export const dataDeletion = {
   title: "EU Work Support Data Deletion Policy",
-  lastUpdated: "May 26, 2026",
+  lastUpdated: "September 13, 2026",
   blocks: [
     {
       type: "paragraph",
-      text: "This Data Deletion Policy explains how EU Work Support users can delete their account and request deletion of personal data. It is designed to support Apple App Store and Google Play requirements for apps that allow users to create accounts.",
+      text: "This Data Deletion Policy explains how EU Work Support users can delete their account and request deletion of personal data. It applies to every account created in the app.",
     },
     {
       type: "heading",
@@ -55,6 +55,7 @@ export const dataDeletion = {
         "Legal compliance",
         "Dispute resolution",
         "Debugging deletion failures",
+        "Purchase and entitlement records needed to honour Premium access, handle refunds or disputes, and meet accounting or tax obligations",
       ],
     },
     {
@@ -103,11 +104,15 @@ export const dataDeletion = {
     },
     {
       type: "heading",
-      text: "No Payment Data",
+      text: "Payment and Purchase Data",
     },
     {
       type: "paragraph",
-      text: "EU Work Support does not collect payment in the mobile app. Therefore, there is no in-app payment card data to delete.",
+      text: "Payments for EU Work Support Premium are processed by the app store you installed the app from (Apple's In-App Purchase on iOS). EU Work Support never receives or stores payment card details, so there is no card data for us to delete. The store keeps its own transaction records under its own policies.",
+    },
+    {
+      type: "paragraph",
+      text: "Purchase and entitlement records held by EU Work Support and our purchase provider, RevenueCat, are retained as described above. You can ask us to delete them by contacting support@euworksupport.eu. Deleting your account does not cancel or refund a purchase.",
     },
     {
       type: "heading",
@@ -115,15 +120,7 @@ export const dataDeletion = {
     },
     {
       type: "paragraph",
-      text: "EU Work Support uses third-party providers such as Clerk for authentication and Supabase for backend data storage. Account deletion may require deletion or de-identification of data across these providers. We use these providers to operate core app features, not for selling user data.",
-    },
-    {
-      type: "heading",
-      text: "App Store and Play Store Account Deletion Alignment",
-    },
-    {
-      type: "paragraph",
-      text: "Apple requires apps that support account creation to let users initiate account deletion in the app. Google Play requires developers to provide users with a way to request account and data deletion and disclose those deletion practices. This policy and the in-app Danger Zone flow are intended to support those requirements.",
+      text: "EU Work Support uses third-party providers such as Clerk for authentication, Supabase for backend data storage, and RevenueCat for purchase validation and Premium access management. Account deletion may require deletion or de-identification of data across these providers. We use these providers to operate core app features, not for selling user data.",
     },
     {
       type: "heading",

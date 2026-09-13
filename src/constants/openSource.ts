@@ -1,6 +1,6 @@
 export const openSource = {
   title: "EU Work Support Open Source Notices",
-  lastUpdated: "May 26, 2026",
+  lastUpdated: "September 13, 2026",
   blocks: [
     {
       type: "paragraph",
@@ -106,11 +106,11 @@ export const openSource = {
     },
     {
       type: "paragraph",
-      text: "EU Work Support should keep this notice available in the project repository and may expose it in-app under Profile > App Info > Open Source Notices.",
+      text: "This notice is available in the app under Profile > Legal > Open source licences.",
     },
     {
       type: "paragraph",
-      text: "For App Store and Play Store submissions, this notice helps document third-party software used by the app. If dependencies change, regenerate and review this notice before release.",
+      text: "When the app's dependencies change, this notice is updated with the next release.",
     },
     {
       type: "heading",

@@ -7,7 +7,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { ListGroup } from "@/components/ui/list-group";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { Radii, Spacing } from "@/constants/theme";
-import { trendingQueries } from "@/features/search/search-service";
+import { suggestedQueries } from "@/features/search/search-service";
 import { useTheme } from "@/hooks/use-theme";
 
 type SearchSuggestionsProps = {
@@ -59,11 +59,11 @@ export function SearchSuggestions({
       ) : null}
 
       <Entrance index={1}>
-        <AppText variant="eyebrow" color="textTertiary" style={styles.trendingTitle}>
-          Trending now
+        <AppText variant="eyebrow" color="textTertiary" style={styles.suggestionsTitle}>
+          Try searching for
         </AppText>
         <View style={styles.chips}>
-          {trendingQueries.map((query) => (
+          {suggestedQueries.map((query) => (
             <PressableScale
               key={query}
               onPress={() => onSelect(query)}
@@ -73,7 +73,7 @@ export function SearchSuggestions({
               accessibilityLabel={`Search ${query}`}
               style={[styles.chip, { backgroundColor: colors.surfaceHigh }]}
             >
-              <Icon name="trending" size={14} color={colors.primary} />
+              <Icon name="search" size={14} color={colors.primary} />
               <AppText variant="label" color="primary">
                 {query}
               </AppText>
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  trendingTitle: {
+  suggestionsTitle: {
     marginBottom: Spacing.sm,
     marginLeft: Spacing.xs,
   },

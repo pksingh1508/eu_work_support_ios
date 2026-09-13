@@ -18,7 +18,8 @@ import { haptic } from "@/lib/haptics";
  */
 export function usePremiumGate() {
   const router = useRouter();
-  const { planStatus, isSignedIn, userId } = useAuthAccess();
+  const { planStatus, isSignedIn, userId, isPlanUnavailable, refreshProfile } =
+    useAuthAccess();
 
   const openBilling = useCallback(() => {
     router.push(BILLING_ROUTE);
@@ -50,17 +51,29 @@ export function usePremiumGate() {
 
       if (planStatus === "free") {
         showPremiumRequired(feature);
+      } else if (isPlanUnavailable) {
+        Alert.alert(
+          "Unable to check your plan",
+          "Check your connection and try again.",
+          [
+            { text: "Not now", style: "cancel" },
+            { text: "Try again", isPreferred: true, onPress: () => void refreshProfile() },
+          ],
+        );
       }
 
       return false;
     },
-    [isSignedIn, planStatus, router, showPremiumRequired, userId],
+    [isPlanUnavailable, isSignedIn, planStatus, refreshProfile, router, showPremiumRequired, userId],
   );
 
   return {
     planStatus,
     isPremium: planStatus === "pro",
     isFreePlan: planStatus === "free",
+    /** The plan check failed or timed out; `retryPlanCheck` reloads it. */
+    isPlanUnavailable,
+    retryPlanCheck: refreshProfile,
     openBilling,
     showPremiumRequired,
     requirePremium,

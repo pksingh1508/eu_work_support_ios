@@ -136,13 +136,3 @@ export function getThemePreference(): ThemePreference {
 export function setThemePreference(preference: ThemePreference) {
   appStorage.set(localStorageKeys.themePreference, preference);
 }
-
-const notificationsPreferenceKey = 'settings.notificationsEnabled';
-
-export function getNotificationsPreference() {
-  return appStorage.getBoolean(notificationsPreferenceKey) ?? true;
-}
-
-export function setNotificationsPreference(enabled: boolean) {
-  appStorage.set(notificationsPreferenceKey, enabled);
-}

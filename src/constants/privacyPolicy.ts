@@ -1,6 +1,6 @@
 export const privacyPolicy = {
   title: "EU Work Support Privacy Policy",
-  lastUpdated: "May 26, 2026",
+  lastUpdated: "September 13, 2026",
   blocks: [
     {
       type: "paragraph",
@@ -12,7 +12,7 @@ export const privacyPolicy = {
     },
     {
       type: "paragraph",
-      text: "This document is intended to support Apple App Store and Google Play review requirements, including clear disclosure of collected data, account deletion, data retention, and third-party service providers.",
+      text: "This policy describes the data we collect, how we use it, how long we keep it, how you can delete it, and which service providers process it on our behalf.",
     },
     {
       type: "heading",
@@ -89,8 +89,21 @@ export const privacyPolicy = {
       ],
     },
     {
+      type: "subheading",
+      text: "Purchase Information",
+    },
+    {
       type: "paragraph",
-      text: "We do not collect payment card information because EU Work Support does not accept payments in the mobile app.",
+      text: "If you buy EU Work Support Premium, the payment is processed by the app store you installed the app from (Apple's In-App Purchase on iOS). We never receive or store your payment card details. To unlock and restore Premium, we and our purchase provider receive purchase information, including:",
+    },
+    {
+      type: "bullets",
+      items: [
+        "The product purchased and the purchase date",
+        "Store transaction and purchase identifiers",
+        "Whether the purchase is active, refunded, or transferred to another account",
+        "The store environment used for the purchase",
+      ],
     },
     {
       type: "heading",
@@ -107,6 +120,7 @@ export const privacyPolicy = {
         "Let users edit profile details",
         "Save and display saved countries and saved documents",
         "Provide country-specific guides and document content",
+        "Confirm, activate, and restore Premium purchases",
         "Respond to support requests and problem reports",
         "Maintain app security and prevent misuse",
         "Debug, monitor, and improve app reliability",
@@ -130,8 +144,9 @@ export const privacyPolicy = {
       items: [
         "Clerk for authentication and account management",
         "Supabase for database storage and backend services",
+        "RevenueCat for purchase validation and Premium access management. RevenueCat receives your account identifier, your email address, and your purchase information.",
+        "The app store you installed the app from, such as the Apple App Store, for app delivery and payment processing under its own terms and privacy policy",
         "Expo and React Native platform services for app delivery and runtime functionality",
-        "Apple App Store and Google Play services when users install or update the app through those stores",
       ],
     },
     {
@@ -159,6 +174,7 @@ export const privacyPolicy = {
       items: [
         "Account information is retained while your account is active.",
         "Saved countries and documents are retained until you remove them or delete your account.",
+        "Purchase records are retained while your account is active and for as long as needed to honour Premium access, handle refunds or disputes, and meet accounting and legal obligations.",
         "Support requests may be retained for customer service, security, and legal record purposes.",
         "Backup and security logs may remain for a limited period after deletion where needed for security, fraud prevention, legal compliance, or disaster recovery.",
       ],
@@ -173,7 +189,7 @@ export const privacyPolicy = {
     },
     {
       type: "paragraph",
-      text: "When account deletion is completed, we delete or de-identify account data associated with your account, including profile details and saved items, unless we are required to retain limited information for security, fraud prevention, legal compliance, dispute resolution, or backup recovery.",
+      text: "When account deletion is completed, we delete or de-identify account data associated with your account, including profile details, saved items, and the purchase records linked to your account, unless we are required to retain limited information for security, fraud prevention, legal compliance, accounting, dispute resolution, or backup recovery. Deleting your account does not cancel or refund a purchase, and the app store keeps its own transaction records under its own policy.",
     },
     {
       type: "paragraph",
@@ -194,6 +210,7 @@ export const privacyPolicy = {
         "Save or unsave countries and documents",
         "Sign out of your account",
         "Change your password where supported by the authentication provider",
+        "Restore a Premium purchase from the Billing tab",
         "Delete your account from the app",
         "Contact support to request access, correction, or deletion of account data",
       ],

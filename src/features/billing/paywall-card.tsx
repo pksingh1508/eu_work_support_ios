@@ -10,11 +10,11 @@ import { Surface } from "@/components/ui/surface";
 import { Radii, Spacing } from "@/constants/theme";
 import {
   getGatedFeatureCopy,
-  PREMIUM_PRICE_LABEL,
   premiumFeatures,
   type GatedFeature,
 } from "@/features/billing/premium";
 import { usePremiumGate } from "@/features/billing/premium-gate";
+import { usePremiumPriceLabel } from "@/features/billing/purchases";
 import { useTheme } from "@/hooks/use-theme";
 
 type PaywallCardProps = {
@@ -30,12 +30,14 @@ type PaywallCardProps = {
 const COMPACT_FEATURE_COUNT = 3;
 
 /**
- * Free-plan message shown in place of Premium content, with the one-time
- * price and a "Buy Premium" action that opens the Billing tab.
+ * Free-plan message shown in place of Premium content, with the store's
+ * localised one-time price (once loaded) and a "Buy Premium" action that
+ * opens the Billing tab.
  */
 export function PaywallCard({ feature, subject, onBack, compact = false, style }: PaywallCardProps) {
   const { colors } = useTheme();
   const { openBilling } = usePremiumGate();
+  const priceLabel = usePremiumPriceLabel();
   const { title, message } = getGatedFeatureCopy(feature, subject);
   const features = compact ? premiumFeatures.slice(0, COMPACT_FEATURE_COUNT) : premiumFeatures;
 
@@ -74,9 +76,11 @@ export function PaywallCard({ feature, subject, onBack, compact = false, style }
               One-time payment · lifetime access
             </AppText>
           </View>
-          <AppText variant="title1" color="primary">
-            {PREMIUM_PRICE_LABEL}
-          </AppText>
+          {priceLabel ? (
+            <AppText variant="title1" color="primary">
+              {priceLabel}
+            </AppText>
+          ) : null}
         </View>
 
         <View style={styles.actions}>

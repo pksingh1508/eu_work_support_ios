@@ -10,17 +10,17 @@ const RESULT_CACHE_LIMIT = 30;
 export const MIN_SEARCH_LENGTH = 2;
 export const SEARCH_DEBOUNCE_MS = 300;
 
-export const fallbackRecentSearches = [
-  "Digital Nomad Visa Spain",
-  "Berlin Tech Salaries",
-  "Blue Card Requirements",
-];
-
-export const trendingQueries = [
-  "Germany Tech Visa",
-  "Poland Work Permit",
-  "Netherlands 30% Ruling",
-  "Portugal D7",
+/**
+ * Starter searches offered while the query is empty. Each one matches a
+ * guide title, a document category or a country, so tapping a chip always
+ * returns results.
+ */
+export const suggestedQueries = [
+  "Student visa",
+  "Health insurance",
+  "Residence permit",
+  "Universities",
+  "Employers",
 ];
 
 const documentSelect = `
@@ -103,28 +103,26 @@ function toIlikePattern(value: string) {
   return `%${normalizeQuery(value).replace(/[%_]/g, "")}%`;
 }
 
-export function getStoredRecentSearches() {
+/** The user's own recent searches; empty until they have searched. */
+export function getStoredRecentSearches(): string[] {
   const stored = appStorage.getString(RECENT_SEARCHES_KEY);
 
   if (!stored) {
-    return fallbackRecentSearches;
+    return [];
   }
 
   try {
     const parsed = JSON.parse(stored);
 
     if (!Array.isArray(parsed)) {
-      return fallbackRecentSearches;
+      return [];
     }
 
-    const searches = parsed.filter(
-      (item): item is string => typeof item === "string",
-    );
-    return searches.length > 0
-      ? searches.slice(0, MAX_RECENT_SEARCHES)
-      : fallbackRecentSearches;
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .slice(0, MAX_RECENT_SEARCHES);
   } catch {
-    return fallbackRecentSearches;
+    return [];
   }
 }
 

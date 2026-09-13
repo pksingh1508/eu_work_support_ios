@@ -5,7 +5,6 @@ import { StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/ui/app-button";
 import { AppText } from "@/components/ui/app-text";
-import { NativeToggle } from "@/components/ui/native-toggle";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { TextField } from "@/components/ui/text-field";
 import { Spacing } from "@/constants/theme";
@@ -31,7 +30,6 @@ export default function SignInScreen() {
   const [secondFactorCode, setSecondFactorCode] = useState("");
   const [secondFactorMethod, setSecondFactorMethod] =
     useState<SecondFactorMethod | null>(null);
-  const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isClerkSlow, setIsClerkSlow] = useState(false);
@@ -279,8 +277,6 @@ export default function SignInScreen() {
           />
         </>
       ) : null}
-
-      <NativeToggle value={rememberMe} onValueChange={setRememberMe} label="Remember me" />
 
       <View style={styles.forgotRow}>
         <PressableScale

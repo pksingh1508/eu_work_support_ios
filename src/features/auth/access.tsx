@@ -15,6 +15,7 @@ import {
   setCachedAuthSnapshot,
 } from "@/lib/local-storage";
 import { supabase } from "@/lib/supabase";
+import { withTimeout } from "@/lib/with-timeout";
 
 export type UserPlan = "Free" | "PRO";
 
@@ -44,10 +45,18 @@ export type AuthAccessContextValue = {
   /** True only for members whose Supabase profile says `PRO`. */
   hasPremiumAccess: boolean;
   isProfileLoading: boolean;
+  /**
+   * True when the plan could not be checked: the profile request failed or
+   * timed out and nothing is cached. Screens show a retry instead of a
+   * skeleton that never ends or a paywall the member does not deserve.
+   */
+  isPlanUnavailable: boolean;
   refreshProfile: () => Promise<AuthAccessProfile | null>;
 };
 
 const defaultUserPlan: UserPlan = "Free";
+/** A stalled profile request must not leave gated screens loading forever. */
+const PROFILE_FETCH_TIMEOUT_MS = 15000;
 
 const AuthAccessContext = createContext<AuthAccessContextValue | undefined>(
   undefined,
@@ -82,6 +91,7 @@ function profileFromCachedSnapshot(): AuthAccessProfile | null {
 export function AuthAccessProvider({ children }: PropsWithChildren) {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [hasProfileError, setHasProfileError] = useState(false);
   const [profile, setProfile] = useState<AuthAccessProfile | null>(() =>
     profileFromCachedSnapshot(),
   );
@@ -89,6 +99,7 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
   const refreshProfile = useCallback(async () => {
     if (!userId) {
       setProfile(null);
+      setHasProfileError(false);
       return null;
     }
 
@@ -102,13 +113,21 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
     setIsProfileLoading(!canUseCachedProfile);
 
     try {
-      await supabase.rpc("ensure_user_profile");
+      const { data, error } = await withTimeout(
+        (async () => {
+          await supabase.rpc("ensure_user_profile");
 
-      const { data, error } = await supabase
-        .from("app_users")
-        .select("email, first_name, last_name, image_url, user_plan")
-        .eq("clerk_user_id", userId)
-        .maybeSingle();
+          const response = await supabase
+            .from("app_users")
+            .select("email, first_name, last_name, image_url, user_plan")
+            .eq("clerk_user_id", userId)
+            .maybeSingle();
+
+          return response;
+        })(),
+        PROFILE_FETCH_TIMEOUT_MS,
+        "Loading your profile took too long.",
+      );
 
       if (error) {
         throw error;
@@ -135,22 +154,14 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
         cachedAt: nextProfile.cachedAt,
       });
       setProfile(nextProfile);
+      setHasProfileError(false);
 
       return nextProfile;
     } catch (error) {
       console.warn("Unable to load Supabase user profile", error);
-
-      if (!canUseCachedProfile) {
-        setProfile({
-          userId,
-          email: null,
-          firstName: null,
-          lastName: null,
-          imageUrl: null,
-          userPlan: defaultUserPlan,
-          cachedAt: Date.now(),
-        });
-      }
+      // Without a cached profile the plan stays "unknown" and gated screens
+      // offer a retry, instead of guessing "Free" and paywalling a member.
+      setHasProfileError(true);
 
       return canUseCachedProfile ? cachedProfile : null;
     } finally {
@@ -167,6 +178,7 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
       clearCachedAuthSnapshot();
       setProfile(null);
       setIsProfileLoading(false);
+      setHasProfileError(false);
       return;
     }
 
@@ -183,7 +195,9 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
 
   const activeProfile = userId && profile?.userId === userId ? profile : null;
   const userPlan = activeProfile?.userPlan ?? null;
-  const shouldWaitForProfile = Boolean(isSignedIn) && !activeProfile;
+  const isPlanUnavailable =
+    isLoaded && Boolean(isSignedIn) && !activeProfile && hasProfileError && !isProfileLoading;
+  const shouldWaitForProfile = Boolean(isSignedIn) && !activeProfile && !hasProfileError;
   const planStatus: PlanStatus = !isLoaded
     ? "unknown"
     : !isSignedIn
@@ -204,6 +218,7 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
       planStatus,
       hasPremiumAccess: planStatus === "pro",
       isProfileLoading: isProfileLoading || shouldWaitForProfile,
+      isPlanUnavailable,
       refreshProfile,
     }),
     [
@@ -214,6 +229,7 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
       userPlan,
       planStatus,
       isProfileLoading,
+      isPlanUnavailable,
       shouldWaitForProfile,
       refreshProfile,
     ],

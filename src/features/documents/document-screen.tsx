@@ -38,7 +38,8 @@ export function DocumentScreen() {
   const { userId } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const documentId = Array.isArray(id) ? id[0] : id;
-  const { planStatus, isPremium, showPremiumRequired } = usePremiumGate();
+  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck, showPremiumRequired } =
+    usePremiumGate();
   const requestIdRef = useRef(0);
   const [document, setDocument] = useState<VisaDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -215,7 +216,18 @@ export function DocumentScreen() {
         <PaywallCard feature="document" onBack={() => router.back()} />
       ) : null}
 
-      {planStatus === "unknown" || (isPremium && isLoading) ? <DocumentSkeleton /> : null}
+      {isPlanUnavailable ? (
+        <ErrorState
+          title="Unable to check your plan"
+          message="Check your connection and try again."
+          action={{ label: "Try again", onPress: () => void retryPlanCheck() }}
+          secondaryAction={{ label: "Go back", onPress: () => router.back() }}
+        />
+      ) : null}
+
+      {(planStatus === "unknown" && !isPlanUnavailable) || (isPremium && isLoading) ? (
+        <DocumentSkeleton />
+      ) : null}
 
       {isPremium && !isLoading && error ? (
         <ErrorState

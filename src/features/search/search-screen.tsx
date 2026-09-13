@@ -29,7 +29,7 @@ const SKELETON_COUNT = 3;
 
 export function SearchScreen() {
   const router = useRouter();
-  const { planStatus, isPremium } = usePremiumGate();
+  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck } = usePremiumGate();
   const inputRef = useRef<TextInput>(null);
   const requestIdRef = useRef(0);
   const [query, setQuery] = useState("");
@@ -139,7 +139,14 @@ export function SearchScreen() {
           <PaywallCard feature="search" style={styles.field} />
         ) : null}
 
-        {planStatus === "unknown" ? (
+        {isPlanUnavailable ? (
+          <ErrorState
+            title="Unable to check your plan"
+            message="Check your connection and try again."
+            action={{ label: "Try again", onPress: () => void retryPlanCheck() }}
+            style={styles.field}
+          />
+        ) : planStatus === "unknown" ? (
           <LoadingState label="Checking your plan…" style={styles.field} />
         ) : null}
 

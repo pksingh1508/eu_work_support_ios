@@ -14,11 +14,13 @@ import {
   refreshCustomerInfo,
   restorePremium,
   syncPurchasesUser,
+  usePremiumPriceLabel,
   usePurchasesStore,
   type PremiumOffer,
 } from "@/features/billing/purchases";
 import { haptic } from "@/lib/haptics";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
+import { UserFacingError } from "@/lib/user-facing-error";
 
 export type PurchaseState = "idle" | "purchasing" | "restoring" | "activating";
 
@@ -41,7 +43,8 @@ export function usePremiumPurchase() {
   const hasStoreEntitlement = usePurchasesStore((state) => state.hasStoreEntitlement);
   const isAvailable = isPurchasesAvailable();
   const [offer, setOffer] = useState<PremiumOffer | null>(null);
-  const [priceLabel, setPriceLabel] = useState(PREMIUM_PRICE_LABEL);
+  const storePriceLabel = usePremiumPriceLabel();
+  const priceLabel = storePriceLabel ?? PREMIUM_PRICE_LABEL;
   const [state, setState] = useState<PurchaseState>("idle");
 
   useEffect(() => {
@@ -58,7 +61,6 @@ export function usePremiumPurchase() {
 
         if (isActive && nextOffer) {
           setOffer(nextOffer);
-          setPriceLabel(nextOffer.priceString || PREMIUM_PRICE_LABEL);
         }
       } catch (error) {
         console.warn("Unable to load the Premium offer", error);
@@ -133,7 +135,7 @@ export function usePremiumPurchase() {
       const target = offer ?? (await fetchPremiumOffer());
 
       if (!target) {
-        throw new Error(
+        throw new UserFacingError(
           "The Premium product is not available right now. Please try again later.",
         );
       }
