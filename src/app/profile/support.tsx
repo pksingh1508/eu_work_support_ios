@@ -12,7 +12,7 @@ import { Surface } from "@/components/ui/surface";
 import { Spacing } from "@/constants/theme";
 import { openMailTo } from "@/lib/url";
 
-const SUPPORT_EMAIL = "support@euworksupport.com";
+const SUPPORT_EMAIL = "support@euworksupport.eu";
 
 export default function SupportScreen() {
   const router = useRouter();

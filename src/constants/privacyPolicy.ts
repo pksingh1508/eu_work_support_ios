@@ -177,7 +177,7 @@ export const privacyPolicy = {
     },
     {
       type: "paragraph",
-      text: "You may also request deletion by contacting support at support@euworksupport.com.",
+      text: "You may also request deletion by contacting support at support@euworksupport.eu.",
     },
     {
       type: "heading",
@@ -236,7 +236,7 @@ export const privacyPolicy = {
     },
     {
       type: "paragraph",
-      text: "For privacy questions or requests, contact support@euworksupport.com.",
+      text: "For privacy questions or requests, contact support@euworksupport.eu.",
     },
   ],
 } as const;

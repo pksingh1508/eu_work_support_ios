@@ -176,7 +176,7 @@ export const termsAndCondition = {
     },
     {
       type: "paragraph",
-      text: "For questions about these Terms, contact support@euworksupport.com.",
+      text: "For questions about these Terms, contact support@euworksupport.eu.",
     },
     {
       type: "heading",

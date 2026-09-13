@@ -79,7 +79,7 @@ export const dataDeletion = {
     },
     {
       type: "paragraph",
-      text: "If a user cannot access the app or account deletion does not work, they may request deletion by contacting support@euworksupport.com.",
+      text: "If a user cannot access the app or account deletion does not work, they may request deletion by contacting support@euworksupport.eu.",
     },
     {
       type: "paragraph",
@@ -99,7 +99,7 @@ export const dataDeletion = {
     },
     {
       type: "paragraph",
-      text: "Support emails or problem reports may be retained after account deletion if needed to handle the request, comply with law, prevent misuse, or maintain security records. Users may request deletion of support records by emailing support@euworksupport.com.",
+      text: "Support emails or problem reports may be retained after account deletion if needed to handle the request, comply with law, prevent misuse, or maintain security records. Users may request deletion of support records by emailing support@euworksupport.eu.",
     },
     {
       type: "heading",
@@ -131,7 +131,7 @@ export const dataDeletion = {
     },
     {
       type: "paragraph",
-      text: "For deletion questions or requests, contact support@euworksupport.com.",
+      text: "For deletion questions or requests, contact support@euworksupport.eu.",
     },
   ],
 } as const;
