@@ -1,7 +1,5 @@
 import type { IconName } from "@/components/ui/icon-names";
 
-/** Fallback price shown before (or without) a store-localised price. */
-export const PREMIUM_PRICE_LABEL = "$59";
 export const PREMIUM_ENTITLEMENT_ID = "premium";
 /** App Store / Google Play product identifier (non-consumable). */
 export const PREMIUM_PRODUCT_ID = "eu_work_support_premium_lifetime";

@@ -6,6 +6,7 @@ import { Chip } from "@/components/ui/chip";
 import { Entrance } from "@/components/ui/entrance";
 import { Icon } from "@/components/ui/icon";
 import { IconBadge } from "@/components/ui/icon-badge";
+import { Spinner } from "@/components/ui/spinner";
 import { Surface } from "@/components/ui/surface";
 import { Radii, Spacing } from "@/constants/theme";
 import {
@@ -14,7 +15,7 @@ import {
   type GatedFeature,
 } from "@/features/billing/premium";
 import { usePremiumGate } from "@/features/billing/premium-gate";
-import { usePremiumPriceLabel } from "@/features/billing/purchases";
+import { usePremiumPriceLabel, usePurchasesStore } from "@/features/billing/purchases";
 import { useTheme } from "@/hooks/use-theme";
 
 type PaywallCardProps = {
@@ -38,6 +39,7 @@ export function PaywallCard({ feature, subject, onBack, compact = false, style }
   const { colors } = useTheme();
   const { openBilling } = usePremiumGate();
   const priceLabel = usePremiumPriceLabel();
+  const isPriceLoading = usePurchasesStore((state) => state.offerStatus === "loading");
   const { title, message } = getGatedFeatureCopy(feature, subject);
   const features = compact ? premiumFeatures.slice(0, COMPACT_FEATURE_COUNT) : premiumFeatures;
 
@@ -80,6 +82,8 @@ export function PaywallCard({ feature, subject, onBack, compact = false, style }
             <AppText variant="title1" color="primary">
               {priceLabel}
             </AppText>
+          ) : isPriceLoading ? (
+            <Spinner size={22} accessibilityLabel="Loading price" />
           ) : null}
         </View>
 

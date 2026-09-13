@@ -12,7 +12,6 @@ import { create } from "zustand";
 import {
   PREMIUM_ENTITLEMENT_ID,
   PREMIUM_PACKAGE_ID,
-  PREMIUM_PRICE_LABEL,
   PREMIUM_PRODUCT_ID,
 } from "@/features/billing/premium";
 import { optionalEnv } from "@/lib/env";
@@ -28,44 +27,53 @@ import { UserFacingError } from "@/lib/user-facing-error";
  * stays the source of truth for content access.
  */
 
+export type PremiumOffer =
+  | { kind: "package"; package: PurchasesPackage; priceString: string }
+  | { kind: "product"; product: PurchasesStoreProduct; priceString: string };
+
+/** Progress of the Premium offer load, so paywalls never guess a price. */
+export type OfferStatus = "idle" | "loading" | "ready" | "error";
+
 type PurchasesStoreState = {
   isConfigured: boolean;
   customerInfo: CustomerInfo | null;
   /** True when the App Store account owns the Premium entitlement. */
   hasStoreEntitlement: boolean;
-  /** Store-localised Premium price (e.g. "59,99 €") once the offer has loaded. */
-  priceLabel: string | null;
+  /**
+   * The Premium package (or bare product) exactly as the store returned it,
+   * carrying Apple's localised `priceString` (e.g. "249,99 zł"). Every screen
+   * shows this price, and `purchasePremium` buys this very object.
+   */
+  offer: PremiumOffer | null;
+  offerStatus: OfferStatus;
+  /** User-facing reason the offer could not be loaded. */
+  offerError: string | null;
   setCustomerInfo: (customerInfo: CustomerInfo | null) => void;
-  setPriceLabel: (priceLabel: string | null) => void;
 };
 
 export const usePurchasesStore = create<PurchasesStoreState>((set) => ({
   isConfigured: false,
   customerInfo: null,
   hasStoreEntitlement: false,
-  priceLabel: null,
+  offer: null,
+  offerStatus: "idle",
+  offerError: null,
   setCustomerInfo: (customerInfo) =>
     set({
       customerInfo,
       hasStoreEntitlement: customerInfo ? hasPremiumEntitlement(customerInfo) : false,
     }),
-  setPriceLabel: (priceLabel) => set({ priceLabel }),
 }));
 
 /**
- * The one price every screen should show. Null until the store has answered,
- * so no screen shows a guessed price next to the real localised one. Builds
- * without a RevenueCat key can never load a price and fall back to the list
- * price.
+ * The one price any screen may show: Apple's localised price of the loaded
+ * offer. Null until the store has answered (still loading, failed, or
+ * purchases disabled in this build), so no screen ever shows a guessed list
+ * price in place of the real storefront one.
  */
 export function usePremiumPriceLabel() {
-  const priceLabel = usePurchasesStore((state) => state.priceLabel);
-  return priceLabel ?? (isPurchasesAvailable() ? null : PREMIUM_PRICE_LABEL);
+  return usePurchasesStore((state) => state.offer?.priceString || null);
 }
-
-export type PremiumOffer =
-  | { kind: "package"; package: PurchasesPackage; priceString: string }
-  | { kind: "product"; product: PurchasesStoreProduct; priceString: string };
 
 let configuredApiKey: string | null = null;
 let activeAppUserId: string | null = null;
@@ -206,11 +214,52 @@ export async function refreshCustomerInfo() {
   return customerInfo;
 }
 
+const OFFER_LOAD_FAILED_MESSAGE =
+  "We could not load the Premium price from the App Store. Please try again.";
+export const OFFER_UNAVAILABLE_MESSAGE =
+  "The Premium product is not available right now. Please try again later.";
+
+/** Records a failed offer load so paywalls show an error instead of a price. */
+export function markOfferFailed(error: unknown) {
+  usePurchasesStore.setState({
+    offerStatus: "error",
+    offerError: getPurchaseErrorMessage(error, OFFER_LOAD_FAILED_MESSAGE),
+  });
+}
+
 /**
  * Finds the Premium offer: the lifetime package of the current offering, or
- * (when offerings are not configured yet) the store product itself.
+ * (when offerings are not configured yet) the store product itself. Progress
+ * is mirrored into the store so paywalls show a spinner or an error while
+ * the price is unknown. Store / network failures are rethrown for callers
+ * that need them (the purchase button surfaces them as a toast).
  */
 export async function fetchPremiumOffer(): Promise<PremiumOffer | null> {
+  usePurchasesStore.setState({ offerStatus: "loading", offerError: null });
+
+  let offer: PremiumOffer | null;
+
+  try {
+    offer = await resolvePremiumOffer();
+  } catch (error) {
+    markOfferFailed(error);
+    throw error;
+  }
+
+  if (offer) {
+    usePurchasesStore.setState({ offer, offerStatus: "ready", offerError: null });
+  } else {
+    usePurchasesStore.setState({
+      offer: null,
+      offerStatus: "error",
+      offerError: OFFER_UNAVAILABLE_MESSAGE,
+    });
+  }
+
+  return offer;
+}
+
+async function resolvePremiumOffer(): Promise<PremiumOffer | null> {
   const offerings = await Purchases.getOfferings();
   const offering = offerings.current;
   const pkg =
@@ -222,18 +271,12 @@ export async function fetchPremiumOffer(): Promise<PremiumOffer | null> {
     null;
 
   if (pkg) {
-    usePurchasesStore.getState().setPriceLabel(pkg.product.priceString || null);
     return { kind: "package", package: pkg, priceString: pkg.product.priceString };
   }
 
   const [product] = await Purchases.getProducts([PREMIUM_PRODUCT_ID]);
 
-  if (product) {
-    usePurchasesStore.getState().setPriceLabel(product.priceString || null);
-    return { kind: "product", product, priceString: product.priceString };
-  }
-
-  return null;
+  return product ? { kind: "product", product, priceString: product.priceString } : null;
 }
 
 /**
@@ -243,7 +286,9 @@ export async function fetchPremiumOffer(): Promise<PremiumOffer | null> {
  * retries on its own.
  */
 export async function prefetchPremiumOffer() {
-  if (!isPurchasesAvailable() || usePurchasesStore.getState().priceLabel) {
+  const { offer, offerStatus } = usePurchasesStore.getState();
+
+  if (!isPurchasesAvailable() || offer || offerStatus === "loading") {
     return;
   }
 

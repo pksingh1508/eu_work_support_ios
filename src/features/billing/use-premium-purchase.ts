@@ -4,19 +4,19 @@ import { Alert } from "react-native";
 
 import { useAuthAccess } from "@/features/auth/access";
 import { authHref } from "@/features/auth/return-to";
-import { BILLING_ROUTE, PREMIUM_PRICE_LABEL } from "@/features/billing/premium";
+import { BILLING_ROUTE } from "@/features/billing/premium";
 import {
+  OFFER_UNAVAILABLE_MESSAGE,
   fetchPremiumOffer,
   getPurchaseErrorMessage,
   isPurchaseCancelled,
   isPurchasesAvailable,
+  markOfferFailed,
   purchasePremium,
   refreshCustomerInfo,
   restorePremium,
   syncPurchasesUser,
-  usePremiumPriceLabel,
   usePurchasesStore,
-  type PremiumOffer,
 } from "@/features/billing/purchases";
 import { haptic } from "@/lib/haptics";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
@@ -36,41 +36,42 @@ function delay(ms: number) {
  * Drives the one-time Premium purchase. RevenueCat owns the transaction; the
  * webhook mirrors the entitlement into Supabase, which is what unlocks
  * content (RLS), so after a purchase we poll the profile until it says PRO.
+ *
+ * The price shown comes from the loaded offer (RevenueCat → StoreKit →
+ * `product.priceString`), never from a hardcoded list price, and `purchase`
+ * buys that same offer object.
  */
 export function usePremiumPurchase() {
   const router = useRouter();
   const { userId, isSignedIn, planStatus, refreshProfile } = useAuthAccess();
   const hasStoreEntitlement = usePurchasesStore((state) => state.hasStoreEntitlement);
+  const offer = usePurchasesStore((state) => state.offer);
+  const offerStatus = usePurchasesStore((state) => state.offerStatus);
+  const offerError = usePurchasesStore((state) => state.offerError);
   const isAvailable = isPurchasesAvailable();
-  const [offer, setOffer] = useState<PremiumOffer | null>(null);
-  const storePriceLabel = usePremiumPriceLabel();
-  const priceLabel = storePriceLabel ?? PREMIUM_PRICE_LABEL;
   const [state, setState] = useState<PurchaseState>("idle");
 
-  useEffect(() => {
+  const priceLabel = offer?.priceString || null;
+  const isPriceLoading = isAvailable && !offer && offerStatus !== "error";
+  const priceError = !offer && offerStatus === "error" ? offerError : null;
+
+  const loadOffer = useCallback(async () => {
     if (!isAvailable) {
       return;
     }
 
-    let isActive = true;
-
-    (async () => {
-      try {
-        await syncPurchasesUser(userId ?? null);
-        const nextOffer = await fetchPremiumOffer();
-
-        if (isActive && nextOffer) {
-          setOffer(nextOffer);
-        }
-      } catch (error) {
-        console.warn("Unable to load the Premium offer", error);
-      }
-    })();
-
-    return () => {
-      isActive = false;
-    };
+    try {
+      await syncPurchasesUser(userId ?? null);
+      await fetchPremiumOffer();
+    } catch (error) {
+      console.warn("Unable to load the Premium offer", error);
+      markOfferFailed(error);
+    }
   }, [isAvailable, userId]);
+
+  useEffect(() => {
+    void loadOffer();
+  }, [loadOffer]);
 
   const waitForActivation = useCallback(async () => {
     for (let attempt = 0; attempt < ACTIVATION_ATTEMPTS; attempt += 1) {
@@ -132,12 +133,11 @@ export function usePremiumPurchase() {
 
     try {
       await syncPurchasesUser(userId ?? null);
+      // Buy the very offer whose price is on screen; fetch only if none loaded yet.
       const target = offer ?? (await fetchPremiumOffer());
 
       if (!target) {
-        throw new UserFacingError(
-          "The Premium product is not available right now. Please try again later.",
-        );
+        throw new UserFacingError(OFFER_UNAVAILABLE_MESSAGE);
       }
 
       const unlocked = await purchasePremium(target);
@@ -219,7 +219,13 @@ export function usePremiumPurchase() {
     isAvailable,
     /** Purchase exists on the App Store account but Supabase has not caught up. */
     isAwaitingActivation: hasStoreEntitlement && planStatus === "free",
+    /** Apple's localised price of the offer `purchase` buys; null until loaded. */
     priceLabel,
+    /** True while the store price is still being fetched. */
+    isPriceLoading,
+    /** Why the price could not be loaded, once loading has failed. */
+    priceError,
+    reloadPrice: loadOffer,
     state,
     purchase,
     restore,

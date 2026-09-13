@@ -344,8 +344,12 @@ Accounts).
    real Apple ID). After that the row appears and shows
    "[Environment: Sandbox]".
 3. **Buy.** In the app log in with the Free test account → Billing tab. The
-   price should read `$59.00` (it comes from App Store Connect). Tap **Buy
-   Premium**. The sheet is labelled "[Environment: Sandbox]"; confirm with
+   price should read `$59.00` for a United States tester; a tester in another
+   region sees that storefront's price instead (for example `249,99 zł` for
+   Poland). The app never hardcodes a price: it shows Apple's `priceString`
+   for the exact RevenueCat package it will purchase, a spinner while that
+   loads, and an error with "Try again" if offerings cannot be fetched. Tap
+   **Buy Premium**. The sheet is labelled "[Environment: Sandbox]"; confirm with
    Face ID or the tester password. Nothing is charged.
 4. **Watch the activation.** The button shows "Payment confirmed. Activating
    your Premium access…" while the app polls the profile for 15 seconds. You

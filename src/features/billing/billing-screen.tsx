@@ -26,6 +26,9 @@ export function BillingScreen() {
     isSignedIn,
     isAwaitingActivation,
     priceLabel,
+    isPriceLoading,
+    priceError,
+    reloadPrice,
     state,
     purchase,
     restore,
@@ -73,11 +76,22 @@ export function BillingScreen() {
                 EU Work Support Premium
               </AppText>
               <View style={styles.priceRow}>
-                <AppText variant="display" color="onHero" style={styles.price}>
-                  {priceLabel}
-                </AppText>
+                {priceLabel ? (
+                  <AppText variant="display" color="onHero" style={styles.price}>
+                    {priceLabel}
+                  </AppText>
+                ) : isPriceLoading ? (
+                  <View style={styles.priceSpinner}>
+                    <Spinner
+                      size={28}
+                      color={colors.onHero}
+                      trackColor={colors.heroSurface}
+                      accessibilityLabel="Loading price"
+                    />
+                  </View>
+                ) : null}
                 <AppText variant="subhead" color="onHeroMuted" style={styles.priceNote}>
-                  one-time payment
+                  {priceLabel || isPriceLoading ? "one-time payment" : "One-time payment"}
                 </AppText>
               </View>
               <AppText variant="footnote" color="onHeroMuted">
@@ -154,8 +168,22 @@ export function BillingScreen() {
                   text="Log in or create an account first so Premium is linked to you."
                 />
               ) : null}
+              {priceError ? (
+                <>
+                  <AuthNotice tone="error" icon="warning" text={priceError} />
+                  <AppButton
+                    label="Try again"
+                    variant="ghost"
+                    size="sm"
+                    icon="refresh"
+                    disabled={isBusy}
+                    haptic="selection"
+                    onPress={() => void reloadPrice()}
+                  />
+                </>
+              ) : null}
               <AppButton
-                label={`Buy Premium · ${priceLabel}`}
+                label={priceLabel ? `Buy Premium · ${priceLabel}` : "Buy Premium"}
                 icon="crown"
                 loading={state === "purchasing" || state === "activating"}
                 disabled={isBusy}
@@ -240,6 +268,10 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 44,
     lineHeight: 50,
+  },
+  priceSpinner: {
+    height: 50,
+    justifyContent: "center",
   },
   priceNote: {
     flexShrink: 1,
