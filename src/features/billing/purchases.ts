@@ -27,9 +27,23 @@ import { UserFacingError } from "@/lib/user-facing-error";
  * stays the source of truth for content access.
  */
 
+type PremiumOfferPrice = {
+  /** Apple's formatted price for the account's storefront, e.g. "249,99 zł". */
+  priceString: string;
+  /** ISO 4217 code of `priceString`, e.g. "PLN". */
+  currencyCode: string;
+  /**
+   * App Store storefront the price was fetched for (ISO 3166-1 alpha-3, e.g.
+   * "IND"), or null when StoreKit could not tell. Apple prices by the
+   * storefront of the Apple Account signed into the App Store, never by the
+   * device's location, so this is the only "country" that matters for price.
+   */
+  storefrontCountryCode: string | null;
+};
+
 export type PremiumOffer =
-  | { kind: "package"; package: PurchasesPackage; priceString: string }
-  | { kind: "product"; product: PurchasesStoreProduct; priceString: string };
+  | (PremiumOfferPrice & { kind: "package"; package: PurchasesPackage })
+  | (PremiumOfferPrice & { kind: "product"; product: PurchasesStoreProduct });
 
 /** Progress of the Premium offer load, so paywalls never guess a price. */
 export type OfferStatus = "idle" | "loading" | "ready" | "error";
@@ -48,6 +62,14 @@ type PurchasesStoreState = {
   offerStatus: OfferStatus;
   /** User-facing reason the offer could not be loaded. */
   offerError: string | null;
+  /**
+   * Storefront of the Apple Account currently signed into the App Store
+   * (ISO 3166-1 alpha-3), read from StoreKit at launch and whenever the app
+   * returns to the foreground. When it differs from the storefront the offer
+   * was priced for, the offer is reloaded so the price on screen always
+   * belongs to the storefront Apple will charge.
+   */
+  storefrontCountryCode: string | null;
   setCustomerInfo: (customerInfo: CustomerInfo | null) => void;
 };
 
@@ -58,6 +80,7 @@ export const usePurchasesStore = create<PurchasesStoreState>((set) => ({
   offer: null,
   offerStatus: "idle",
   offerError: null,
+  storefrontCountryCode: null,
   setCustomerInfo: (customerInfo) =>
     set({
       customerInfo,
@@ -214,6 +237,31 @@ export async function refreshCustomerInfo() {
   return customerInfo;
 }
 
+/**
+ * Reads the App Store storefront, the "country" Apple prices for, from
+ * StoreKit. It is a local, instant lookup with no permission prompt, unlike
+ * IP or GPS geolocation, which could disagree with the account Apple charges.
+ * Never throws; null when StoreKit cannot tell (no Apple Account signed in).
+ */
+export async function refreshStorefront(): Promise<string | null> {
+  if (!usePurchasesStore.getState().isConfigured) {
+    return null;
+  }
+
+  try {
+    const storefront = await Purchases.getStorefront();
+    const countryCode = storefront?.countryCode?.trim().toUpperCase() || null;
+    usePurchasesStore.setState({ storefrontCountryCode: countryCode });
+    return countryCode;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("Unable to read the App Store storefront", error);
+    }
+
+    return usePurchasesStore.getState().storefrontCountryCode;
+  }
+}
+
 const OFFER_LOAD_FAILED_MESSAGE =
   "We could not load the Premium price from the App Store. Please try again.";
 export const OFFER_UNAVAILABLE_MESSAGE =
@@ -260,7 +308,12 @@ export async function fetchPremiumOffer(): Promise<PremiumOffer | null> {
 }
 
 async function resolvePremiumOffer(): Promise<PremiumOffer | null> {
-  const offerings = await Purchases.getOfferings();
+  // Read the storefront alongside the offerings so the price and the
+  // storefront it belongs to are captured at the same moment.
+  const [offerings, storefrontCountryCode] = await Promise.all([
+    Purchases.getOfferings(),
+    refreshStorefront(),
+  ]);
   const offering = offerings.current;
   const pkg =
     offering?.lifetime ??
@@ -271,24 +324,50 @@ async function resolvePremiumOffer(): Promise<PremiumOffer | null> {
     null;
 
   if (pkg) {
-    return { kind: "package", package: pkg, priceString: pkg.product.priceString };
+    return {
+      kind: "package",
+      package: pkg,
+      priceString: pkg.product.priceString,
+      currencyCode: pkg.product.currencyCode,
+      storefrontCountryCode,
+    };
   }
 
   const [product] = await Purchases.getProducts([PREMIUM_PRODUCT_ID]);
 
-  return product ? { kind: "product", product, priceString: product.priceString } : null;
+  return product
+    ? {
+        kind: "product",
+        product,
+        priceString: product.priceString,
+        currencyCode: product.currencyCode,
+        storefrontCountryCode,
+      }
+    : null;
 }
 
 /**
- * Warms the offer (and therefore the localised price) right after the SDK is
+ * Loads the offer (and therefore the localised price) right after the SDK is
  * configured, so paywall cards and the Profile row show the store price
- * before the user ever opens Billing. Failures are silent: the Billing tab
- * retries on its own.
+ * before the user ever opens Billing, and reloads it whenever the App Store
+ * storefront no longer matches the one the price was fetched for (the user
+ * switched Apple Account or its country while the app was in the
+ * background). Failures are silent: the Billing tab retries on its own.
  */
-export async function prefetchPremiumOffer() {
-  const { offer, offerStatus } = usePurchasesStore.getState();
+export async function ensurePremiumOffer() {
+  // The foreground check can fire before the launch sync has configured the
+  // SDK; the sync calls this again as soon as it has.
+  if (!isPurchasesAvailable() || !usePurchasesStore.getState().isConfigured) {
+    return;
+  }
 
-  if (!isPurchasesAvailable() || offer || offerStatus === "loading") {
+  const storefrontCountryCode = await refreshStorefront();
+  const { offer, offerStatus } = usePurchasesStore.getState();
+  const isOfferCurrent =
+    offer !== null &&
+    (storefrontCountryCode === null || offer.storefrontCountryCode === storefrontCountryCode);
+
+  if (offerStatus === "loading" || isOfferCurrent) {
     return;
   }
 
@@ -296,7 +375,7 @@ export async function prefetchPremiumOffer() {
     await fetchPremiumOffer();
   } catch (error) {
     if (__DEV__) {
-      console.warn("Unable to prefetch the Premium offer", error);
+      console.warn("Unable to load the Premium offer", error);
     }
   }
 }

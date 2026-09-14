@@ -37,6 +37,14 @@ Identifiers used everywhere (keep them identical in every dashboard):
 | Price                                 | USD 59, one-time                   |
 | iOS bundle id                         | `ios.euworksupport.app`            |
 
+Apple derives the amount for every other storefront from that USD 59 price
+point (App Store Connect price schedule) and charges the storefront of the
+Apple Account signed into the App Store, never the device's location, IP
+address or language. The app therefore never picks a price itself: it shows
+StoreKit's `priceString` for that storefront, captions it with the storefront
+name ("Price shown for the India App Store in INR"), and reloads it when the
+storefront changes (`src/features/billing/storefront.ts`, `purchases.ts`).
+
 What is already in the repo:
 
 | Piece                                                                                     | Where                                                                                        |
@@ -208,6 +216,9 @@ What is already in the repo:
 - [ ] Real device, sandbox tester signed in (section 10.2): the sheet says
       "[Environment: Sandbox]", purchase succeeds, RevenueCat customer shows
       the entitlement, `app_users.user_plan = 'PRO'`, country pages open.
+- [ ] Sandbox tester from another region (for example India or Poland):
+      Billing tab, paywall cards and the Profile row show that storefront's
+      currency, and the caption under the hero price names the region.
 - [ ] Delete and reinstall the app, log in, tap **Restore purchase**: Premium
       comes back without paying again.
 - [ ] Log in with the same Clerk account on a second device: Premium is
@@ -253,6 +264,7 @@ key. No app code changes are needed.
 | Webhook returns 401                                                                                          | Authorization header does not match `REVENUECAT_WEBHOOK_SECRET`                                                         | Re-set the secret on both sides                                                                                                   |
 | Webhook returns 500 "Unable to upsert entitlement"                                                           | Billing tables missing or the unique constraint `(clerk_user_id, entitlement_id)` absent                                | Run section 6 of `supabase.md`                                                                                                    |
 | Restore says "Nothing to restore"                                                                            | Different App Store account, or the sandbox purchase was on another Apple ID                                            | Sign in with the purchasing Apple ID                                                                                              |
+| Billing tab shows `$59.00` although the phone is in India, Poland, …                                         | Apple prices for the storefront of the Apple Account or sandbox tester signed into the App Store, never for the device's location or IP; the tester from 10.1 and the `.storekit` file are United States | Sign in a sandbox tester created for that region (10.1); the caption under the price names the storefront in use                 |
 | Simulator shows no products                                                                                  | No StoreKit configuration selected in the scheme                                                                        | Section 10.3                                                                                                                      |
 | Simulator shows "Sign in to Apple Account" when tapping Buy Premium                                          | No StoreKit configuration selected, so the simulator went to Apple's real sandbox, which Apple only supports on devices | Cancel, then use section 10.3 (simulator) or 10.2 (device)                                                                        |
 | Red "[RevenueCat] 🍎‼️ Purchase was cancelled." console error after Cancel                                   | The SDK logs a dismissed sheet at ERROR level and its default handler calls `console.error`                             | Fixed: `purchases.ts` registers its own log handler before `configure()`, drops cancellations and downgrades the rest to warnings |
@@ -282,9 +294,15 @@ treats that as "no purchase" and stays quiet) and use one of the routes below.
 
 1. **Create a sandbox tester.** App Store Connect → Users and Access →
    _Sandbox_ → _Testers_ → _+_. Use an email that is not already an Apple
-   Account (a Gmail `+sandbox` alias works), set the region to **United
-   States** so prices show as `$59.00`, and write the password down; it cannot
-   be recovered. Never sign into the real App Store with it.
+   Account (a Gmail `+sandbox` alias works) and write the password down; it
+   cannot be recovered. Never sign into the real App Store with it.
+
+   The tester's **region is the App Store storefront**, and that alone decides
+   the currency and amount the app shows: United States gives `$59.00`,
+   Poland `249,99 zł`, India Apple's INR price point. The phone's location,
+   SIM, IP address or language change nothing, so a tester created with
+   region United States shows `$59.00` in India too. Create one tester per
+   region you want to see.
 2. **Let sandbox events unlock content.** Every sandbox, TestFlight, Test
    Store _and App Review_ purchase reaches the webhook with
    `environment: "SANDBOX"`, and `revenuecat-webhook` ignores those unless
@@ -348,9 +366,14 @@ Accounts).
    region sees that storefront's price instead (for example `249,99 zł` for
    Poland). The app never hardcodes a price: it shows Apple's `priceString`
    for the exact RevenueCat package it will purchase, a spinner while that
-   loads, and an error with "Try again" if offerings cannot be fetched. Tap
-   **Buy Premium**. The sheet is labelled "[Environment: Sandbox]"; confirm with
-   Face ID or the tester password. Nothing is charged.
+   loads, and an error with "Try again" if offerings cannot be fetched. The
+   caption under the price ("Price shown for the United States App Store in
+   USD") names the storefront StoreKit is using; if it is not the region you
+   expected, the sandbox tester signed into Settings, or, before any sandbox
+   sign-in, the Apple Account under Settings → Media & Purchases, belongs to
+   another region. Tap **Buy Premium**. The sheet is labelled
+   "[Environment: Sandbox]"; confirm with Face ID or the tester password.
+   Nothing is charged.
 4. **Watch the activation.** The button shows "Payment confirmed. Activating
    your Premium access…" while the app polls the profile for 15 seconds. You
    should get the "Welcome to Premium" toast and the country pages open. If
@@ -410,6 +433,15 @@ ios/EUWorkSupport.xcworkspace` (run `npx expo prebuild --platform ios`
    Confirm. RevenueCat validates the transaction, the webhook receives a
    sandbox event, and with `REVENUECAT_ALLOW_SANDBOX=true` the plan flips to
    `PRO` and the "Welcome to Premium" toast appears.
+
+   The simulator prices for the file's _Default Storefront_ (select the
+   `.storekit` file in Xcode → _Editor_ → _Default Storefront_), which is
+   United States, so the Billing tab says "Price shown for the United States
+   App Store in USD" whatever the Mac's region. Switching the storefront only
+   changes the currency of the one local `59.00` price; a file created with
+   _Sync this file with an app in App Store Connect_ carries Apple's real
+   amount per territory. For another region's true price use a device with
+   a sandbox tester from that region (10.1).
 7. To buy again: Xcode → _Debug_ → _StoreKit_ → _Manage Transactions…_ →
    select the transaction → delete or refund it, and reset the RevenueCat
    customer and `user_plan` as in 10.2 step 7.

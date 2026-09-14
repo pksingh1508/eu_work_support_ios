@@ -18,6 +18,7 @@ import {
   syncPurchasesUser,
   usePurchasesStore,
 } from "@/features/billing/purchases";
+import { describePriceStorefront } from "@/features/billing/storefront";
 import { haptic } from "@/lib/haptics";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
 import { UserFacingError } from "@/lib/user-facing-error";
@@ -39,7 +40,10 @@ function delay(ms: number) {
  *
  * The price shown comes from the loaded offer (RevenueCat → StoreKit →
  * `product.priceString`), never from a hardcoded list price, and `purchase`
- * buys that same offer object.
+ * buys that same offer object. Apple sets that price per App Store
+ * storefront (the country of the Apple Account signed into the App Store),
+ * so the offer also records which storefront it was priced for and the
+ * screen captions the price with it.
  */
 export function usePremiumPurchase() {
   const router = useRouter();
@@ -52,6 +56,9 @@ export function usePremiumPurchase() {
   const [state, setState] = useState<PurchaseState>("idle");
 
   const priceLabel = offer?.priceString || null;
+  const priceRegionNote = offer
+    ? describePriceStorefront(offer.storefrontCountryCode, offer.currencyCode)
+    : null;
   const isPriceLoading = isAvailable && !offer && offerStatus !== "error";
   const priceError = !offer && offerStatus === "error" ? offerError : null;
 
@@ -221,6 +228,8 @@ export function usePremiumPurchase() {
     isAwaitingActivation: hasStoreEntitlement && planStatus === "free",
     /** Apple's localised price of the offer `purchase` buys; null until loaded. */
     priceLabel,
+    /** Which App Store storefront (country) and currency `priceLabel` belongs to. */
+    priceRegionNote,
     /** True while the store price is still being fetched. */
     isPriceLoading,
     /** Why the price could not be loaded, once loading has failed. */

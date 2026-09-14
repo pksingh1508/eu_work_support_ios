@@ -26,6 +26,7 @@ export function BillingScreen() {
     isSignedIn,
     isAwaitingActivation,
     priceLabel,
+    priceRegionNote,
     isPriceLoading,
     priceError,
     reloadPrice,
@@ -97,6 +98,11 @@ export function BillingScreen() {
               <AppText variant="footnote" color="onHeroMuted">
                 No subscription. No renewals. Pay once and keep access for life.
               </AppText>
+              {priceLabel && priceRegionNote ? (
+                <AppText variant="caption" color="onHeroMuted" style={styles.priceRegion}>
+                  {priceRegionNote}
+                </AppText>
+              ) : null}
             </HeroCard>
           </Entrance>
         )}
@@ -275,6 +281,9 @@ const styles = StyleSheet.create({
   },
   priceNote: {
     flexShrink: 1,
+  },
+  priceRegion: {
+    marginTop: Spacing.xs,
   },
   groupTitle: {
     marginBottom: Spacing.sm,
