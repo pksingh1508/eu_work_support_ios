@@ -162,7 +162,7 @@ The app separates authentication from content access.
 6. Content access is decided by the Supabase profile's `user_plan`:
    - `Free` members see a Free-plan message with a **Buy Premium** button on country pages, guide pages, the Search and Saved tabs and any save action.
    - `PRO` members get everything.
-7. The **Billing** tab sells Premium as a one-time purchase (USD 59, lifetime access) through RevenueCat / App Store In-App Purchase. After a purchase the app polls the profile until the RevenueCat webhook (`supabase/functions/revenuecat-webhook`) flips `user_plan` to `PRO`. The full setup checklist (App Store Connect, RevenueCat, Supabase, testing, App Review) is in [IAP.md](IAP.md).
+7. The **Billing** tab sells Premium as a one-time purchase (USD 59, lifetime access) through RevenueCat / App Store In-App Purchase. After a purchase the app calls the Edge Function `revenuecat-sync` (`supabase/functions/revenuecat-sync`), which verifies the entitlement with RevenueCat and sets `user_plan` to `PRO`; the RevenueCat webhook (`supabase/functions/revenuecat-webhook`) keeps it in step afterwards (refunds, transfers). Polling the profile for the webhook is only the fallback. The full setup checklist (App Store Connect, RevenueCat, Supabase, testing, App Review) is in [IAP.md](IAP.md).
 
 The shared access state lives in:
 

@@ -1023,6 +1023,16 @@ Events to handle:
 - product change
 - transfer
 
+### RevenueCat Sync (`revenuecat-sync`)
+
+Called by the app (not by RevenueCat) after a purchase or restore, from "Already paid? Refresh status", and at launch when the App Store account owns Premium but `user_plan` is still `Free`. It verifies the caller's Clerk token by calling `ensure_user_profile` through the Data API with that token, reads the customer from RevenueCat's REST API v1 with `REVENUECAT_SECRET_API_KEY`, and writes:
+
+- `revenuecat_customers`
+- `subscription_entitlements` (status `active` for `premium`)
+- `app_users.user_plan` = `PRO` only; it never downgrades (refunds arrive as webhook `CANCELLATION` events)
+
+It exists because RevenueCat sends no webhook event for a purchase it already knows (re-download of an owned non-consumable, restore that changes nothing), so the webhook alone cannot activate those accounts.
+
 ### OneSignal
 
 Writes are usually client-driven for:

@@ -1,8 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { useAuthAccess } from "@/features/auth/access";
-import { ensurePremiumOffer, syncPurchasesUser } from "@/features/billing/purchases";
+import { syncPremiumWithServer } from "@/features/billing/premium-sync";
+import {
+  ensurePremiumOffer,
+  syncPurchasesUser,
+  usePurchasesStore,
+} from "@/features/billing/purchases";
 
 /**
  * Configures RevenueCat at launch and keeps its app user id in step with the
@@ -13,11 +18,18 @@ import { ensurePremiumOffer, syncPurchasesUser } from "@/features/billing/purcha
  * and every time the app returns to the foreground, and a change (another
  * Apple Account, or the same account moved to another country) reloads the
  * offer so no screen keeps showing a price from the previous storefront.
+ *
+ * Finally, it self-heals a stuck activation: when the App Store account owns
+ * Premium but the Supabase profile still says Free (a webhook event never
+ * arrived, or none was ever sent because the purchase was a restore or a
+ * re-download), it asks the server once per user to verify with RevenueCat.
  * Renders nothing.
  */
 export function PurchasesBridge() {
-  const { isAuthLoaded, userId, profile } = useAuthAccess();
+  const { isAuthLoaded, userId, profile, planStatus, refreshProfile } = useAuthAccess();
+  const hasStoreEntitlement = usePurchasesStore((state) => state.hasStoreEntitlement);
   const email = profile?.email ?? null;
+  const healedUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isAuthLoaded) {
@@ -40,6 +52,25 @@ export function PurchasesBridge() {
 
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    if (
+      !userId ||
+      planStatus !== "free" ||
+      !hasStoreEntitlement ||
+      healedUserRef.current === userId
+    ) {
+      return;
+    }
+
+    healedUserRef.current = userId;
+
+    syncPremiumWithServer()
+      .then((result) => (result?.userPlan === "PRO" ? refreshProfile() : null))
+      .catch((error) => {
+        console.warn("Unable to sync the Premium plan", error);
+      });
+  }, [hasStoreEntitlement, planStatus, refreshProfile, userId]);
 
   return null;
 }

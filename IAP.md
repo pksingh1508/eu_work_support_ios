@@ -11,10 +11,23 @@ User taps "Buy Premium"
   → react-native-purchases (RevenueCat SDK) shows the App Store payment sheet (StoreKit 2)
   → Apple charges the user's App Store account
   → RevenueCat validates the receipt and grants the `premium` entitlement
-  → RevenueCat calls the Supabase Edge Function `revenuecat-webhook`
-  → The function sets app_users.user_plan = 'PRO'
+  → The app calls the Supabase Edge Function `revenuecat-sync`, which asks RevenueCat
+    whether the entitlement is active and sets app_users.user_plan = 'PRO'
+  → Independently, RevenueCat calls the Edge Function `revenuecat-webhook` for every
+    new event (purchase, refund, transfer) and keeps user_plan in step later on
   → The app re-reads the profile and unlocks countries, guides, search and saves
 ```
+
+Two server paths set `user_plan` on purpose. The webhook only fires for a
+_new_ RevenueCat event, and RevenueCat creates none for a purchase it already
+knows: buying the non-consumable again with the same Apple Account is Apple's
+free re-download of the original transaction ("You've already purchased
+this"), a restore that changes nothing sends nothing, and a webhook delivery
+that failed is gone. `revenuecat-sync` therefore reads the customer straight
+from RevenueCat's REST API whenever the app holds a confirmed purchase (after
+Buy, after Restore, from "Already paid? Refresh status", and at launch when
+the App Store account owns Premium but the profile still says Free). It only
+ever upgrades; refunds still arrive as webhook `CANCELLATION` events.
 
 Why RevenueCat instead of talking to StoreKit directly:
 
@@ -22,8 +35,9 @@ Why RevenueCat instead of talking to StoreKit directly:
   RevenueCat wraps StoreKit 2 (products, purchase sheet, receipts, restores,
   refunds, Family Sharing) and gives you a dashboard and a webhook for free.
 - Content access is enforced by Supabase Row Level Security through
-  `app_users.user_plan`. The client never writes `user_plan`; only the webhook
-  (service role) does. That makes the paywall impossible to bypass from a
+  `app_users.user_plan`. The client never writes `user_plan`; only the two
+  Edge Functions (service role) do, and `revenuecat-sync` grants it solely on
+  RevenueCat's word. That makes the paywall impossible to bypass from a
   jailbroken device.
 
 Identifiers used everywhere (keep them identical in every dashboard):
@@ -51,10 +65,11 @@ What is already in the repo:
 | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | SDK install (`react-native-purchases` 10.x)                                               | `package.json`, pods installed in `ios/`                                                     |
 | SDK lifecycle: configure at launch, `logIn(clerkUserId)` / `logOut`, entitlement listener | `src/features/billing/purchases.ts`, `purchases-bridge.tsx` (mounted in `app-providers.tsx`) |
-| Purchase / restore flow with post-purchase activation polling                             | `src/features/billing/use-premium-purchase.ts`                                               |
+| Purchase / restore flow: server-side activation, webhook polling as fallback              | `src/features/billing/use-premium-purchase.ts`, `premium-sync.ts`                            |
 | Billing tab UI, feature list, price, Restore, Terms/Privacy links                         | `src/features/billing/billing-screen.tsx`                                                    |
 | Free-plan paywall + "Buy Premium" on country, guide, Search and Saved                     | `src/features/billing/paywall-card.tsx`, `premium-gate.ts`                                   |
 | Webhook that mirrors purchases into Supabase and sets `user_plan`                         | `supabase/functions/revenuecat-webhook/index.ts`                                             |
+| On-demand check: verifies the entitlement with RevenueCat's REST API and sets `user_plan` | `supabase/functions/revenuecat-sync/index.ts`                                                |
 | StoreKit configuration for simulator testing                                              | `store/EUWorkSupport.storekit`                                                               |
 | Env keys                                                                                  | `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`               |
 
@@ -161,7 +176,26 @@ What is already in the repo:
    `--no-verify-jwt` is required because RevenueCat does not send a Supabase
    JWT; the function checks the `Authorization: Bearer <secret>` header instead.
 
-5. **Test the webhook.** RevenueCat → Integrations → Webhooks → _Send test
+5. **Deploy the sync function with a RevenueCat secret key.** RevenueCat →
+   Project settings → _API keys_ → _+ New_ → name it (for example
+   `supabase-sync`), version **V1**, _Generate_, copy the `sk_…` key. The
+   `appl_…` public key cannot read customers. Then:
+
+   ```bash
+   supabase secrets set REVENUECAT_SECRET_API_KEY=sk_...
+   supabase functions deploy revenuecat-sync --no-verify-jwt
+   ```
+
+   `--no-verify-jwt` is required here too: the app authenticates with a Clerk
+   session token, which the Supabase gateway cannot verify. The function
+   verifies that token itself by calling the Data API with it (Third-Party
+   Auth), so a caller can only ever sync their own account. Never put the
+   `sk_` key in `.env` or EAS: it can grant entitlements and delete
+   customers. Without this function the app still works, but activation then
+   depends on the webhook alone, which never fires for a repeated purchase
+   (section 9).
+
+6. **Test the webhook.** RevenueCat → Integrations → Webhooks → _Send test
    event_ must return 200 and create a row in `revenuecat_events` with
    `event_type = 'TEST'`. Then run a sandbox purchase (section 6) and confirm
    `app_users.user_plan` becomes `PRO` for that Clerk user.
@@ -219,6 +253,12 @@ What is already in the repo:
 - [ ] Sandbox tester from another region (for example India or Poland):
       Billing tab, paywall cards and the Profile row show that storefront's
       currency, and the caption under the hero price names the region.
+- [ ] Buy again with the same Apple Account after resetting `user_plan` to
+      `Free` (section 10.2 step 7): Apple says "You've already purchased
+      this", RevenueCat records nothing new and sends no event, and the app
+      still ends on "Welcome to Premium" because `revenuecat-sync` read the
+      entitlement from RevenueCat (Supabase → Edge Functions →
+      `revenuecat-sync` → Logs shows "Premium active").
 - [ ] Delete and reinstall the app, log in, tap **Restore purchase**: Premium
       comes back without paying again.
 - [ ] Log in with the same Clerk account on a second device: Premium is
@@ -268,7 +308,11 @@ key. No app code changes are needed.
 | Simulator shows no products                                                                                  | No StoreKit configuration selected in the scheme                                                                        | Section 10.3                                                                                                                      |
 | Simulator shows "Sign in to Apple Account" when tapping Buy Premium                                          | No StoreKit configuration selected, so the simulator went to Apple's real sandbox, which Apple only supports on devices | Cancel, then use section 10.3 (simulator) or 10.2 (device)                                                                        |
 | Red "[RevenueCat] 🍎‼️ Purchase was cancelled." console error after Cancel                                   | The SDK logs a dismissed sheet at ERROR level and its default handler calls `console.error`                             | Fixed: `purchases.ts` registers its own log handler before `configure()`, drops cancellations and downgrades the rest to warnings |
-| Purchase succeeds but the app shows "Your App Store purchase was found. Premium is being activated…" forever | The event was `SANDBOX` and `REVENUECAT_ALLOW_SANDBOX` is unset, or the RevenueCat webhook only sends production events | Section 10.1                                                                                                                      |
+| Purchase succeeds but the app shows "Your App Store purchase was found. Premium is being activated…" forever | The event was `SANDBOX` and `REVENUECAT_ALLOW_SANDBOX` is unset, or the RevenueCat webhook only sends production events | Section 10.1; then tap _Already paid? Refresh status_ (runs `revenuecat-sync`)                                                    |
+| "Payment confirmed. Activating…" runs for 15 s, then "Payment received … within a few minutes"; RevenueCat shows no new transaction and Supabase gets no new `revenuecat_events` row | The Apple Account already owned the product from an earlier test. TestFlight buys in the sandbox with the production Apple Account unless a Sandbox Apple Account is signed in (10.2), and a production account's purchase history cannot be cleared. Apple's "You've already purchased this" is a free re-download of the original transaction, so RevenueCat has nothing new to record and sends no webhook event, and the old flow waited for that event alone | Deploy `revenuecat-sync` (section 4.5): it activates from RevenueCat's customer record without an event. To watch a first-time purchase again, sign in a fresh Sandbox Apple Account or clear the tester's purchase history |
+| RevenueCat → Customers shows no transactions at all                                                          | The _View sandbox data_ toggle in the top bar is off, so sandbox purchases are hidden                                   | Turn it on, then open the customer with the Clerk user id (`user_…`)                                                              |
+| "Sandbox purchase found … not enabled to unlock content on this server"                                      | `revenuecat-sync` saw an active entitlement whose purchase is sandbox, and `REVENUECAT_ALLOW_SANDBOX` is not `true`     | Section 10.1 step 2                                                                                                               |
+| "Already paid? Refresh status" says "Not active yet" although RevenueCat shows the entitlement               | `revenuecat-sync` is not deployed, or `REVENUECAT_SECRET_API_KEY` is missing / not a V1 secret key (function log shows `sync_not_configured` or `revenuecat_unauthorized`) | Section 4.5                                                                                                                       |
 | "Purchase failed" with a receipt or "invalid" message on the simulator with the StoreKit file                | The StoreKit public certificate is not uploaded to RevenueCat                                                           | Section 10.3, step 4                                                                                                              |
 
 ## 10. Sandbox purchase test, step by step
@@ -375,10 +419,12 @@ Accounts).
    "[Environment: Sandbox]"; confirm with Face ID or the tester password.
    Nothing is charged.
 4. **Watch the activation.** The button shows "Payment confirmed. Activating
-   your Premium access…" while the app polls the profile for 15 seconds. You
-   should get the "Welcome to Premium" toast and the country pages open. If
-   you get "Payment received … will appear within a few minutes" instead, the
-   webhook did not flip the plan; go to step 5.
+   your Premium access…" while the app asks `revenuecat-sync` to verify the
+   purchase with RevenueCat (about a second) and, only if that function is
+   not deployed, polls the profile for 15 seconds waiting for the webhook.
+   You should get the "Welcome to Premium" toast and the country pages open.
+   If you get "Payment received … will appear within a few minutes" instead,
+   neither path flipped the plan; go to step 5.
 5. **Verify the chain.**
    - RevenueCat → _Customers_ → search the Clerk user id (`user_…`): the
      `premium` entitlement is active and marked sandbox.
@@ -387,10 +433,14 @@ Accounts).
      `ignored` means step 10.1.2 is missing).
    - Supabase: a row in `revenuecat_events`, a row in
      `subscription_entitlements`, and `app_users.user_plan = 'PRO'`.
+   - Supabase → Edge Functions → `revenuecat-sync` → Logs: "Premium active"
+     for the Clerk user id (or the reason it declined).
 6. **Restore.** Delete the app, install it again, log in with the same Clerk
    account, tap **Restore purchase** → Premium comes back with no payment.
    Buying the same product again shows Apple's "You've already purchased
-   this" sheet, which is correct for a non-consumable.
+   this" sheet, which is correct for a non-consumable: Apple re-delivers the
+   original transaction for free, RevenueCat records nothing new and sends no
+   webhook event, and the app still activates through `revenuecat-sync`.
 7. **Reset for another run.** App Store Connect → Users and Access →
    _Sandbox_ → _Testers_ → your tester → _Clear Purchase History_; delete the
    customer in RevenueCat (_Customers_ → the user → _Delete_); in the
@@ -401,11 +451,18 @@ Accounts).
    where clerk_user_id = 'user_xxxxxxxx';
    ```
 
-   Then delete the app from the phone and install it again.
+   Then delete the app from the phone and install it again. _Clear Purchase
+   History_ exists only for sandbox testers: a production Apple Account keeps
+   its sandbox purchase forever, so every later Buy from it is a re-download
+   (no new RevenueCat transaction, no webhook event). To watch a first-time
+   purchase again, create a new sandbox tester.
 
-TestFlight also uses the sandbox: on the phone sign out of _Settings → your
-name → Media & Purchases_, sign in under _Settings → Developer → Sandbox Apple
-Account_, then buy inside the TestFlight build. Same checks as above.
+TestFlight builds always run in the sandbox, but they buy with the production
+Apple Account signed into _Settings → your name → Media & Purchases_ unless
+you sign that account out there and sign a sandbox tester in under _Settings
+→ Developer → Sandbox Apple Account_ (Apple's documented TestFlight
+procedure). Do that before the first Buy: the production account's sandbox
+purchase cannot be cleared afterwards. Same checks as above.
 
 ### 10.3 Route B: simulator + StoreKit configuration file
 
@@ -467,6 +524,9 @@ ios/EUWorkSupport.xcworkspace` (run `npx expo prebuild --platform ios`
 
 - `.env` and the EAS production environment hold the `appl_…` key.
 - `REVENUECAT_ALLOW_SANDBOX=true` stays set through App Review (10.1.2).
+- `REVENUECAT_SECRET_API_KEY` is set and `revenuecat-sync` is deployed
+  (section 4.5), so a reviewer whose sandbox account already bought the
+  product in an earlier review still gets Premium.
 - The RevenueCat webhook sends both sandbox and production events.
 - The StoreKit configuration file only affects Xcode runs; App Store and
   TestFlight builds ignore it, so nothing needs to be removed.

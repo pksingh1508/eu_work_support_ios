@@ -5,6 +5,7 @@ import { Alert } from "react-native";
 import { useAuthAccess } from "@/features/auth/access";
 import { authHref } from "@/features/auth/return-to";
 import { BILLING_ROUTE } from "@/features/billing/premium";
+import { syncPremiumWithServer, type PremiumSyncResult } from "@/features/billing/premium-sync";
 import {
   OFFER_UNAVAILABLE_MESSAGE,
   fetchPremiumOffer,
@@ -23,20 +24,34 @@ import { haptic } from "@/lib/haptics";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
 import { UserFacingError } from "@/lib/user-facing-error";
 
-export type PurchaseState = "idle" | "purchasing" | "restoring" | "activating";
+export type PurchaseState = "idle" | "purchasing" | "restoring" | "activating" | "syncing";
 
-/** How long to wait for the RevenueCat webhook to flip `user_plan` to PRO. */
+/**
+ * How long to wait for the RevenueCat webhook to flip `user_plan` to PRO when
+ * the server could not verify the purchase itself (sync function not deployed
+ * yet, or RevenueCat has not received the transaction).
+ */
 const ACTIVATION_ATTEMPTS = 6;
 const ACTIVATION_INTERVAL_MS = 2500;
+
+/** RevenueCat confirmed the purchase, but the server refuses sandbox purchases. */
+const SANDBOX_BLOCKED_NOTE =
+  "Your purchase is confirmed, but sandbox (test) purchases are not enabled to unlock content on this server yet.";
+const ACTIVATION_PENDING_MESSAGE =
+  "Your access is being activated and will appear within a few minutes.";
 
 function delay(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Drives the one-time Premium purchase. RevenueCat owns the transaction; the
- * webhook mirrors the entitlement into Supabase, which is what unlocks
- * content (RLS), so after a purchase we poll the profile until it says PRO.
+ * Drives the one-time Premium purchase. RevenueCat owns the transaction and
+ * Supabase `user_plan` is what unlocks content (RLS), so after a purchase the
+ * app asks the server to verify the entitlement with RevenueCat and mirror it
+ * (`revenuecat-sync`), falling back to polling the profile for the webhook.
+ * The server check matters because RevenueCat sends no webhook event for a
+ * purchase it already knows: Apple's free re-download of an owned
+ * non-consumable, or a restore that changes nothing.
  *
  * The price shown comes from the loaded offer (RevenueCat → StoreKit →
  * `product.priceString`), never from a hardcoded list price, and `purchase`
@@ -54,6 +69,8 @@ export function usePremiumPurchase() {
   const offerError = usePurchasesStore((state) => state.offerError);
   const isAvailable = isPurchasesAvailable();
   const [state, setState] = useState<PurchaseState>("idle");
+  /** Why a confirmed App Store purchase is still not active here, when the server said. */
+  const [activationNote, setActivationNote] = useState<string | null>(null);
 
   const priceLabel = offer?.priceString || null;
   const priceRegionNote = offer
@@ -61,6 +78,12 @@ export function usePremiumPurchase() {
     : null;
   const isPriceLoading = isAvailable && !offer && offerStatus !== "error";
   const priceError = !offer && offerStatus === "error" ? offerError : null;
+
+  useEffect(() => {
+    if (planStatus === "pro") {
+      setActivationNote(null);
+    }
+  }, [planStatus]);
 
   const loadOffer = useCallback(async () => {
     if (!isAvailable) {
@@ -80,6 +103,12 @@ export function usePremiumPurchase() {
     void loadOffer();
   }, [loadOffer]);
 
+  const celebrate = useCallback(() => {
+    setActivationNote(null);
+    haptic.success();
+    showSuccessToast("Welcome to Premium", "Every guide is now unlocked.");
+  }, []);
+
   const waitForActivation = useCallback(async () => {
     for (let attempt = 0; attempt < ACTIVATION_ATTEMPTS; attempt += 1) {
       const profile = await refreshProfile();
@@ -96,19 +125,37 @@ export function usePremiumPurchase() {
 
   const finishUnlock = useCallback(async () => {
     setState("activating");
-    const activated = await waitForActivation();
+    setActivationNote(null);
 
-    if (activated) {
-      haptic.success();
-      showSuccessToast("Welcome to Premium", "Every guide is now unlocked.");
+    // 1. Server-side check: the Edge Function asks RevenueCat whether this
+    //    account holds the entitlement and mirrors the answer into Supabase.
+    //    Works for every confirmed purchase, including the ones RevenueCat
+    //    sends no webhook event for.
+    const sync = await syncPremiumWithServer();
+
+    if (sync?.userPlan === "PRO") {
+      const profile = await refreshProfile();
+
+      if (profile?.userPlan === "PRO") {
+        celebrate();
+        return;
+      }
+    }
+
+    if (sync?.ignored) {
+      setActivationNote(SANDBOX_BLOCKED_NOTE);
+      showInfoToast("Payment received", SANDBOX_BLOCKED_NOTE);
       return;
     }
 
-    showInfoToast(
-      "Payment received",
-      "Your access is being activated and will appear within a few minutes.",
-    );
-  }, [waitForActivation]);
+    // 2. Fallback: wait for the webhook to flip the plan.
+    if (await waitForActivation()) {
+      celebrate();
+      return;
+    }
+
+    showInfoToast("Payment received", ACTIVATION_PENDING_MESSAGE);
+  }, [celebrate, refreshProfile, waitForActivation]);
 
   const ensureSignedIn = useCallback(() => {
     if (isSignedIn && userId) {
@@ -210,15 +257,60 @@ export function usePremiumPurchase() {
     }
   }, [ensureSignedIn, explainUnavailable, finishUnlock, isAvailable, state, userId]);
 
+  /**
+   * "Already paid? Refresh status": re-checks the App Store account, asks the
+   * server to verify with RevenueCat, then reloads the profile and says what
+   * it found.
+   */
   const refreshPlan = useCallback(async () => {
-    if (isAvailable) {
-      refreshCustomerInfo().catch((error) => {
-        console.warn("Unable to refresh purchases", error);
-      });
+    if (state !== "idle") {
+      return;
     }
 
-    return refreshProfile();
-  }, [isAvailable, refreshProfile]);
+    setState("syncing");
+
+    try {
+      let sync: PremiumSyncResult | null = null;
+
+      if (isAvailable && isSignedIn && userId) {
+        try {
+          await syncPurchasesUser(userId);
+          await refreshCustomerInfo();
+        } catch (error) {
+          console.warn("Unable to refresh purchases", error);
+        }
+
+        sync = await syncPremiumWithServer();
+      }
+
+      const profile = await refreshProfile();
+
+      if (profile?.userPlan === "PRO") {
+        setActivationNote(null);
+        haptic.success();
+        showSuccessToast("Premium is active", "Every guide is unlocked on this account.");
+        return;
+      }
+
+      if (sync?.ignored) {
+        setActivationNote(SANDBOX_BLOCKED_NOTE);
+        showInfoToast("Sandbox purchase found", SANDBOX_BLOCKED_NOTE);
+        return;
+      }
+
+      if (sync && !sync.entitlementActive && !hasStoreEntitlement) {
+        showInfoToast(
+          "No purchase found",
+          "No Premium purchase is linked to this account. If you bought it with this App Store account, tap Restore purchase.",
+        );
+        return;
+      }
+
+      showInfoToast("Not active yet", "Your plan has not been updated yet. Please try again in a moment.");
+    } finally {
+      setState("idle");
+    }
+  }, [hasStoreEntitlement, isAvailable, isSignedIn, refreshProfile, state, userId]);
 
   return {
     planStatus,
@@ -226,6 +318,8 @@ export function usePremiumPurchase() {
     isAvailable,
     /** Purchase exists on the App Store account but Supabase has not caught up. */
     isAwaitingActivation: hasStoreEntitlement && planStatus === "free",
+    /** Server-provided reason the purchase is not active yet, if it gave one. */
+    activationNote,
     /** Apple's localised price of the offer `purchase` buys; null until loaded. */
     priceLabel,
     /** Which App Store storefront (country) and currency `priceLabel` belongs to. */

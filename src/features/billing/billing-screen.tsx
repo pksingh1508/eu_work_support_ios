@@ -25,6 +25,7 @@ export function BillingScreen() {
     planStatus,
     isSignedIn,
     isAwaitingActivation,
+    activationNote,
     priceLabel,
     priceRegionNote,
     isPriceLoading,
@@ -142,7 +143,8 @@ export function BillingScreen() {
               <AppText variant="callout" style={styles.activatingText}>
                 {state === "activating"
                   ? "Payment confirmed. Activating your Premium access…"
-                  : "Your App Store purchase was found. Premium is being activated on this account; tap refresh below if it does not appear within a few minutes."}
+                  : (activationNote ??
+                    "Your App Store purchase was found. Premium is being activated on this account; tap “Already paid? Refresh status” below if it does not appear within a few minutes.")}
               </AppText>
             </Surface>
           </Entrance>
@@ -208,6 +210,7 @@ export function BillingScreen() {
                   label="Already paid? Refresh status"
                   variant="ghost"
                   size="sm"
+                  loading={state === "syncing"}
                   disabled={isBusy}
                   haptic="selection"
                   onPress={() => void refreshPlan()}
