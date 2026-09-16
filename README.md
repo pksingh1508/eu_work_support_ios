@@ -206,6 +206,18 @@ The client expects Supabase to provide:
 
 ## Troubleshooting
 
+### EAS iOS Archive Fails in ExpoModulesCore
+
+The production iOS profile in `eas.json` pins the EAS image to
+`macos-tahoe-26.4-xcode-26.4`. The SDK 55 default Xcode 26.2 image hit a Swift
+6.2.3 compiler crash in the `SendNonSendable` pass while compiling
+`SharedObject.emit(event:arguments:)` in ExpoModulesCore 55.0.26. See the
+[matching upstream report](https://github.com/expo/expo/issues/43199).
+
+Build with `eas build -p ios --profile production`. If an archive fails, inspect
+the full Xcode logs for the first compiler error or crash; the final Fastlane
+summary and deployment-target warnings may not identify the cause.
+
 ### Missing Environment Variables
 
 If the app throws a missing environment variable error, check `src/lib/env.ts` and confirm every required value exists in `.env`.
