@@ -2,7 +2,7 @@
   "expo": {
     "name": "EU Work Support",
     "slug": "eu_work_support_ios",
-    "version": "2.1.4",
+    "version": "3.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "euworksupport",
