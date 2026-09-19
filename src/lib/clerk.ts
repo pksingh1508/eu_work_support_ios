@@ -17,8 +17,8 @@ function warnKeychainUnavailable(error: unknown) {
   hasWarnedAboutKeychain = true;
   console.warn(
     "Keychain is unavailable, so the Clerk session will not persist across app restarts. " +
-      "On iOS this usually means the build is missing the keychain-access-groups entitlement " +
-      "(see README: iOS Login Times Out or Clerk Never Loads).",
+      "On iOS this usually means the build is missing the keychain-access-groups entitlement: " +
+      "run `expo prebuild --platform ios`, then rebuild and reinstall with code signing enabled.",
     error,
   );
 }
