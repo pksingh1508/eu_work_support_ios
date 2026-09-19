@@ -16,9 +16,13 @@ type UnAuthenticatedProps = {
   returnTo?: string;
 };
 
+/**
+ * Shown on account-management screens when nobody is signed in. An account
+ * is optional: it only carries Premium and saves across devices.
+ */
 export function UnAuthenticated({
-  title = "Log in to continue",
-  message = "Country guides, search and saved items are available to members. Log in or create a free account to get started.",
+  title = "Log in to manage your account",
+  message = "An account is optional. It lets you use Premium and your saved guides on your other devices. You can browse, buy and use Premium on this device without one.",
   returnTo,
 }: UnAuthenticatedProps) {
   const router = useRouter();

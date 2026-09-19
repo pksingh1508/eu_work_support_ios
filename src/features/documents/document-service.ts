@@ -1,10 +1,13 @@
+import { fetchGuestContent } from "@/features/billing/guest-premium";
 import {
   firstRelation,
   normalizeContentJson,
   type ContentJson,
+  type ContentSource,
 } from "@/features/content/content-types";
 import { supabase } from "@/lib/supabase";
 
+// Mirrored in supabase/functions/guest-premium/index.ts; keep them in step.
 const documentSelect = `
   id,
   title,
@@ -112,7 +115,12 @@ function mapDocument(row: RawDocument): VisaDocument | null {
   };
 }
 
-export async function fetchVisaDocument(id: string) {
+export async function fetchVisaDocument(id: string, source: ContentSource) {
+  if (source === "guest") {
+    const row = await fetchGuestContent<RawDocument | null>({ action: "document", id });
+    return row ? mapDocument(row) : null;
+  }
+
   const { data, error } = await supabase
     .from("country_documents")
     .select(documentSelect)

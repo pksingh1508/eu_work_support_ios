@@ -14,7 +14,7 @@ import { TextField } from "@/components/ui/text-field";
 import { Spacing } from "@/constants/theme";
 import { useAuthAccess } from "@/features/auth/access";
 import { AuthNotice } from "@/features/auth/components/auth-layout";
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
+import { AccountGuard } from "@/features/auth/components/account-guard";
 import { haptic } from "@/lib/haptics";
 import { supabase } from "@/lib/supabase";
 
@@ -25,9 +25,9 @@ type EditableProfile = {
 
 export default function EditProfileScreen() {
   return (
-    <PremiumGuard>
+    <AccountGuard>
       <EditProfileContent />
-    </PremiumGuard>
+    </AccountGuard>
   );
 }
 

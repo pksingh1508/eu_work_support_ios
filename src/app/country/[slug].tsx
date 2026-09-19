@@ -1,10 +1,6 @@
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
 import { CountryScreen } from "@/features/countries/country-screen";
 
+// Open to everyone: no account is needed to browse, buy or use Premium.
 export default function CountryDetailRoute() {
-  return (
-    <PremiumGuard>
-      <CountryScreen />
-    </PremiumGuard>
-  );
+  return <CountryScreen />;
 }

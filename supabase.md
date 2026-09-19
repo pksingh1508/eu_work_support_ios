@@ -1033,6 +1033,15 @@ Called by the app (not by RevenueCat) after a purchase or restore, from "Already
 
 It exists because RevenueCat sends no webhook event for a purchase it already knows (re-download of an owned non-consumable, restore that changes nothing), so the webhook alone cannot activate those accounts.
 
+### Guest Premium (`guest-premium`)
+
+Premium can be bought and used without an account (App Store Review Guideline 5.1.1(v)). A guest has no Clerk token, so the content RLS (PRO members only) returns nothing to them. The app calls this function instead; it writes nothing.
+
+- `session` with `{ appUserId }`: accepts only RevenueCat anonymous ids (`$RCAnonymousID:` + 32 hex). It reads the customer from RevenueCat's REST API v1 with `REVENUECAT_SECRET_API_KEY` and, when `premium` is active (sandbox only with `REVENUECAT_ALLOW_SANDBOX=true`), returns an HMAC-signed access token valid for 7 days (`GUEST_ACCESS_TOKEN_SECRET`).
+- `country`, `countryId`, `document`, `search` with `{ token, … }`: verifies the token and runs the same selects and filters as the member queries in the app (published, English, active countries) with the service role.
+
+Deploy with `supabase functions deploy guest-premium --no-verify-jwt`. Offline test: `supabase/tests/guest-premium.test.ts`.
+
 ### OneSignal
 
 Writes are usually client-driven for:

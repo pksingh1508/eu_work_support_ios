@@ -55,7 +55,8 @@ export function HomeScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isAuthLoaded, userId, hasPremiumAccess, profile } = useAuthAccess();
+  const { isAuthLoaded, savedItemsOwnerId, hasPremiumAccess, planStatus, profile } =
+    useAuthAccess();
   const hydrateSavedForUser = useSavedStore((state) => state.hydrateForUser);
   const resetSavedStore = useSavedStore((state) => state.reset);
   const { canSave, toggleSave, isSaved, isSaving } = useCountrySave();
@@ -77,13 +78,23 @@ export function HomeScreen() {
         return;
       }
 
-      if (!hasPremiumAccess || !userId) {
-        resetSavedStore();
+      if (!hasPremiumAccess || !savedItemsOwnerId) {
+        // Keep the cache while the plan is still being checked.
+        if (planStatus === "free") {
+          resetSavedStore();
+        }
         return;
       }
 
-      void hydrateSavedForUser(userId);
-    }, [hasPremiumAccess, hydrateSavedForUser, isAuthLoaded, resetSavedStore, userId]),
+      void hydrateSavedForUser(savedItemsOwnerId);
+    }, [
+      hasPremiumAccess,
+      hydrateSavedForUser,
+      isAuthLoaded,
+      planStatus,
+      resetSavedStore,
+      savedItemsOwnerId,
+    ]),
   );
 
   const listData = useMemo<HomeListItem[]>(

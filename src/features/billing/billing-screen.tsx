@@ -14,16 +14,24 @@ import { Surface } from "@/components/ui/surface";
 import { TabScreen } from "@/components/ui/tab-screen";
 import { Radii, Spacing } from "@/constants/theme";
 import { AuthNotice } from "@/features/auth/components/auth-layout";
-import { premiumFeatures } from "@/features/billing/premium";
+import { OptionalAccountCard } from "@/features/auth/components/optional-account-card";
+import { authHref } from "@/features/auth/return-to";
+import { BILLING_ROUTE, premiumFeatures } from "@/features/billing/premium";
 import { usePremiumPurchase } from "@/features/billing/use-premium-purchase";
 import { useTheme } from "@/hooks/use-theme";
 
+/**
+ * Sells Premium to everyone, account or not (App Store Review Guideline
+ * 5.1.1(v)). Guests buy and restore on this device; the optional account is
+ * offered only as the way to use Premium on their other devices.
+ */
 export function BillingScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const {
+    isReady,
     planStatus,
-    isSignedIn,
+    isGuest,
     isAwaitingActivation,
     activationNote,
     priceLabel,
@@ -38,7 +46,7 @@ export function BillingScreen() {
   } = usePremiumPurchase();
 
   const isPremium = planStatus === "pro";
-  const isBusy = state !== "idle";
+  const isBusy = state !== "idle" || !isReady;
 
   return (
     <TabScreen>
@@ -47,8 +55,10 @@ export function BillingScreen() {
           <AppText variant="display">Billing</AppText>
           <AppText variant="subhead" color="textSecondary" style={styles.subtitle}>
             {isPremium
-              ? "Your Premium access is active on this account."
-              : "One payment. Every guide, forever."}
+              ? isGuest
+                ? "Premium is unlocked on this device."
+                : "Your Premium access is active."
+              : "One payment. Every guide, forever. No account needed."}
           </AppText>
         </Entrance>
 
@@ -57,22 +67,23 @@ export function BillingScreen() {
             <Surface tone="success" style={styles.memberCard}>
               <IconBadge icon="crownFill" tone="success" size={56} radius="lg" />
               <AppText variant="title2" style={styles.memberTitle}>
-                You are a Premium member
+                Premium is unlocked
               </AppText>
               <AppText variant="body" color="textSecondary" style={styles.memberBody}>
                 All country guides, visa documents, search and saves are unlocked. This
                 was a one-time purchase, so there is nothing to renew.
               </AppText>
             </Surface>
+            {isGuest ? (
+              <OptionalAccountCard returnTo={BILLING_ROUTE} style={styles.accountCard} />
+            ) : null}
           </Entrance>
         ) : (
           <Entrance index={1} style={styles.section}>
             <HeroCard>
               <View style={styles.heroTop}>
                 <Chip label="Lifetime access" icon="crown" tone="inverse" uppercase />
-                {planStatus === "free" && isSignedIn ? (
-                  <Chip label="Free plan" tone="inverse" />
-                ) : null}
+                {planStatus === "free" ? <Chip label="Free plan" tone="inverse" /> : null}
               </View>
               <AppText variant="title2" color="onHero" style={styles.heroTitle}>
                 EU Work Support Premium
@@ -144,7 +155,7 @@ export function BillingScreen() {
                 {state === "activating"
                   ? "Payment confirmed. Activating your Premium access…"
                   : (activationNote ??
-                    "Your App Store purchase was found. Premium is being activated on this account; tap “Already paid? Refresh status” below if it does not appear within a few minutes.")}
+                    "Your App Store purchase was found. Premium is being activated; tap “Already paid? Refresh status” below if it does not appear within a few minutes.")}
               </AppText>
             </Surface>
           </Entrance>
@@ -169,11 +180,11 @@ export function BillingScreen() {
             </View>
           ) : (
             <View style={styles.actions}>
-              {!isSignedIn ? (
+              {isGuest ? (
                 <AuthNotice
                   tone="primary"
                   icon="info"
-                  text="Log in or create an account first so Premium is linked to you."
+                  text="No account needed. Premium unlocks on this device as soon as you buy. You can create a free account later, if you like, to use it on your other devices too."
                 />
               ) : null}
               {priceError ? (
@@ -205,15 +216,23 @@ export function BillingScreen() {
                 disabled={isBusy}
                 onPress={restore}
               />
-              {isSignedIn ? (
+              <AppButton
+                label="Already paid? Refresh status"
+                variant="ghost"
+                size="sm"
+                loading={state === "syncing"}
+                disabled={isBusy}
+                haptic="selection"
+                onPress={() => void refreshPlan()}
+              />
+              {isGuest ? (
                 <AppButton
-                  label="Already paid? Refresh status"
+                  label="Bought Premium with an account? Log in"
                   variant="ghost"
                   size="sm"
-                  loading={state === "syncing"}
                   disabled={isBusy}
                   haptic="selection"
-                  onPress={() => void refreshPlan()}
+                  onPress={() => router.push(authHref("/sign-in", BILLING_ROUTE))}
                 />
               ) : null}
             </View>
@@ -222,7 +241,7 @@ export function BillingScreen() {
 
         <AppText variant="caption" color="textTertiary" align="center" style={styles.legal}>
           Payment is charged to your App Store account. Premium is a one-time purchase
-          with no automatic renewal. See our{" "}
+          with no automatic renewal, and no account is required. See our{" "}
           <AppText
             variant="caption"
             color="primary"
@@ -315,6 +334,9 @@ const styles = StyleSheet.create({
   },
   memberBody: {
     marginTop: Spacing.sm,
+  },
+  accountCard: {
+    marginTop: Spacing.lg,
   },
   activating: {
     flexDirection: "row",

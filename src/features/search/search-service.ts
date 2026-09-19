@@ -1,4 +1,5 @@
-import { firstRelation } from "@/features/content/content-types";
+import { fetchGuestContent } from "@/features/billing/guest-premium";
+import { firstRelation, type ContentSource } from "@/features/content/content-types";
 import { appStorage } from "@/lib/local-storage";
 import { supabase } from "@/lib/supabase";
 
@@ -23,6 +24,8 @@ export const suggestedQueries = [
   "Employers",
 ];
 
+// Mirrored in supabase/functions/guest-premium/index.ts (searchSelect), which
+// runs the same matching for guests; keep them in step.
 const documentSelect = `
   id,
   title,
@@ -256,7 +259,15 @@ function publishedDocumentsQuery() {
     .eq("countries.is_active", true);
 }
 
-async function searchPublishedDocumentsUncached(query: string) {
+async function searchPublishedDocumentsUncached(query: string, source: ContentSource) {
+  if (source === "guest") {
+    const rows = await fetchGuestContent<RawSearchDocument[]>({
+      action: "search",
+      query: normalizeQuery(query),
+    });
+    return mergeSearchRows(rows ?? []);
+  }
+
   const pattern = toIlikePattern(query);
   const [documentResponse, matches] = await Promise.all([
     publishedDocumentsQuery().ilike("search_text", pattern).limit(SEARCH_LIMIT),
@@ -308,7 +319,7 @@ async function searchPublishedDocumentsUncached(query: string) {
  */
 const resultCache = new Map<string, SearchResult[]>();
 
-export async function searchPublishedDocuments(query: string) {
+export async function searchPublishedDocuments(query: string, source: ContentSource) {
   const cacheKey = normalizeQuery(query).toLowerCase();
   const cached = resultCache.get(cacheKey);
 
@@ -318,7 +329,7 @@ export async function searchPublishedDocuments(query: string) {
     return cached;
   }
 
-  const results = await searchPublishedDocumentsUncached(query);
+  const results = await searchPublishedDocumentsUncached(query, source);
 
   resultCache.set(cacheKey, results);
 

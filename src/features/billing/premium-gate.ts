@@ -3,7 +3,6 @@ import { useCallback } from "react";
 import { Alert } from "react-native";
 
 import { useAuthAccess } from "@/features/auth/access";
-import { authHref } from "@/features/auth/return-to";
 import {
   BILLING_ROUTE,
   getGatedFeatureCopy,
@@ -14,12 +13,13 @@ import { haptic } from "@/lib/haptics";
 /**
  * Plan-aware helpers for actions that need Premium. `requirePremium` returns
  * true when the action may proceed; otherwise it has already shown the right
- * prompt (log in, or the Free-plan alert with a "Buy Premium" action).
+ * prompt (the Free-plan alert with a "Buy Premium" action, or a retry when
+ * the plan could not be checked). Premium never asks for an account: guests
+ * can buy and use it on their device.
  */
 export function usePremiumGate() {
   const router = useRouter();
-  const { planStatus, isSignedIn, userId, isPlanUnavailable, refreshProfile } =
-    useAuthAccess();
+  const { planStatus, isPlanUnavailable, refreshPlan } = useAuthAccess();
 
   const openBilling = useCallback(() => {
     router.push(BILLING_ROUTE);
@@ -39,12 +39,7 @@ export function usePremiumGate() {
   );
 
   const requirePremium = useCallback(
-    (feature: GatedFeature, returnTo?: string) => {
-      if (!isSignedIn || !userId) {
-        router.push(authHref("/sign-in", returnTo));
-        return false;
-      }
-
+    (feature: GatedFeature) => {
       if (planStatus === "pro") {
         return true;
       }
@@ -57,14 +52,14 @@ export function usePremiumGate() {
           "Check your connection and try again.",
           [
             { text: "Not now", style: "cancel" },
-            { text: "Try again", isPreferred: true, onPress: () => void refreshProfile() },
+            { text: "Try again", isPreferred: true, onPress: () => void refreshPlan() },
           ],
         );
       }
 
       return false;
     },
-    [isPlanUnavailable, isSignedIn, planStatus, refreshProfile, router, showPremiumRequired, userId],
+    [isPlanUnavailable, planStatus, refreshPlan, showPremiumRequired],
   );
 
   return {
@@ -73,7 +68,7 @@ export function usePremiumGate() {
     isFreePlan: planStatus === "free",
     /** The plan check failed or timed out; `retryPlanCheck` reloads it. */
     isPlanUnavailable,
-    retryPlanCheck: refreshProfile,
+    retryPlanCheck: refreshPlan,
     openBilling,
     showPremiumRequired,
     requirePremium,

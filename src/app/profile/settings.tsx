@@ -3,19 +3,11 @@ import { useRouter } from "expo-router";
 
 import { Screen } from "@/components/ui/screen";
 import { ScreenHeader } from "@/components/ui/screen-header";
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
 import { SettingsForm } from "@/features/settings/settings-form";
 import { useThemeStore } from "@/features/theme/theme-store";
 
+// Appearance, help and legal: nothing here needs an account.
 export default function ProfileSettingsScreen() {
-  return (
-    <PremiumGuard>
-      <ProfileSettingsContent />
-    </PremiumGuard>
-  );
-}
-
-function ProfileSettingsContent() {
   const router = useRouter();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);

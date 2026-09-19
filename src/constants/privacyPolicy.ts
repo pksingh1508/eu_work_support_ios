@@ -1,6 +1,6 @@
 export const privacyPolicy = {
   title: "EU Work Support Privacy Policy",
-  lastUpdated: "September 13, 2026",
+  lastUpdated: "September 19, 2026",
   blocks: [
     {
       type: "paragraph",
@@ -20,7 +20,7 @@ export const privacyPolicy = {
     },
     {
       type: "paragraph",
-      text: "We collect only the information needed to provide account-based features in the app.",
+      text: "We collect only the information needed to provide the app's features. An account is optional: you can browse the app and buy and use Premium without creating one.",
     },
     {
       type: "subheading",
@@ -28,7 +28,7 @@ export const privacyPolicy = {
     },
     {
       type: "paragraph",
-      text: "When you create or use an account, we may collect:",
+      text: "If you choose to create or use an account, we may collect:",
     },
     {
       type: "bullets",
@@ -54,6 +54,10 @@ export const privacyPolicy = {
         "Saved documents or guides",
         "Dates when saved items were created or updated",
       ],
+    },
+    {
+      type: "paragraph",
+      text: "If you use the app without an account, your saved items are stored only on your device. If you later log in, they are copied to your account so they are available on your other devices.",
     },
     {
       type: "subheading",
@@ -103,6 +107,7 @@ export const privacyPolicy = {
         "Store transaction and purchase identifiers",
         "Whether the purchase is active, refunded, or transferred to another account",
         "The store environment used for the purchase",
+        "If you use the app without an account, an anonymous purchase identifier that our purchase provider generates on your device. It is not linked to your name or email unless you later log in.",
       ],
     },
     {
@@ -144,7 +149,7 @@ export const privacyPolicy = {
       items: [
         "Clerk for authentication and account management",
         "Supabase for database storage and backend services",
-        "RevenueCat for purchase validation and Premium access management. RevenueCat receives your account identifier, your email address, and your purchase information.",
+        "RevenueCat for purchase validation and Premium access management. RevenueCat receives your purchase information and an anonymous identifier generated on your device, plus your account identifier and email address if you are logged in.",
         "The app store you installed the app from, such as the Apple App Store, for app delivery and payment processing under its own terms and privacy policy",
         "Expo and React Native platform services for app delivery and runtime functionality",
       ],
@@ -173,8 +178,8 @@ export const privacyPolicy = {
       type: "bullets",
       items: [
         "Account information is retained while your account is active.",
-        "Saved countries and documents are retained until you remove them or delete your account.",
-        "Purchase records are retained while your account is active and for as long as needed to honour Premium access, handle refunds or disputes, and meet accounting and legal obligations.",
+        "Saved countries and documents are retained until you remove them or delete your account. Without an account, they stay only on your device and are removed when you delete the app.",
+        "Purchase records are retained for as long as needed to honour Premium access, handle refunds or disputes, and meet accounting and legal obligations.",
         "Support requests may be retained for customer service, security, and legal record purposes.",
         "Backup and security logs may remain for a limited period after deletion where needed for security, fraud prevention, legal compliance, or disaster recovery.",
       ],
@@ -196,6 +201,10 @@ export const privacyPolicy = {
       text: "You may also request deletion by contacting support at support@euworksupport.eu.",
     },
     {
+      type: "paragraph",
+      text: "If you use the app without an account, we hold no name or email address for you. Your purchase records are kept by our purchase provider under an anonymous identifier. You can ask us to delete them by contacting support with the purchase date and, if possible, the order ID from your App Store receipt.",
+    },
+    {
       type: "heading",
       text: "User Choices and Controls",
     },
@@ -206,11 +215,12 @@ export const privacyPolicy = {
     {
       type: "bullets",
       items: [
+        "Use the app, and buy or restore Premium, without creating an account",
         "Edit your profile name in the app",
         "Save or unsave countries and documents",
         "Sign out of your account",
         "Change your password where supported by the authentication provider",
-        "Restore a Premium purchase from the Billing tab",
+        "Restore a Premium purchase from the Billing tab, with or without an account",
         "Delete your account from the app",
         "Contact support to request access, correction, or deletion of account data",
       ],

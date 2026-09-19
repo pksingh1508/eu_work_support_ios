@@ -1,7 +1,6 @@
-import { useAuth } from "@clerk/expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { ContentSections } from "@/components/content/content-sections";
 import { AppButton } from "@/components/ui/app-button";
@@ -20,6 +19,7 @@ import { ErrorState } from "@/components/ui/state-views";
 import { Surface } from "@/components/ui/surface";
 import { getCountryCodeBySlug } from "@/constants/country";
 import { Radii, Spacing } from "@/constants/theme";
+import { useAuthAccess } from "@/features/auth/access";
 import { PaywallCard } from "@/features/billing/paywall-card";
 import { usePremiumGate } from "@/features/billing/premium-gate";
 import { getCategoryIcon } from "@/features/content/category-icon";
@@ -35,10 +35,10 @@ const MAX_HERO_TAGS = 3;
 
 export function DocumentScreen() {
   const router = useRouter();
-  const { userId } = useAuth();
+  const { contentSource, savedItemsOwnerId } = useAuthAccess();
   const { id } = useLocalSearchParams<{ id: string }>();
   const documentId = Array.isArray(id) ? id[0] : id;
-  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck, showPremiumRequired } =
+  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck, requirePremium } =
     usePremiumGate();
   const requestIdRef = useRef(0);
   const [document, setDocument] = useState<VisaDocument | null>(null);
@@ -68,7 +68,7 @@ export function DocumentScreen() {
     setIsLoading(true);
     setError(null);
 
-    fetchVisaDocument(documentId)
+    fetchVisaDocument(documentId, contentSource)
       .then((nextDocument) => {
         if (requestIdRef.current !== requestId) {
           return;
@@ -91,9 +91,10 @@ export function DocumentScreen() {
           setIsLoading(false);
         }
       });
-  }, [documentId]);
+  }, [contentSource, documentId]);
 
-  // Guides are only readable by Premium members (RLS), so wait for the plan.
+  // Guides are only readable with Premium (RLS for members, the purchase
+  // check for guests), so wait for the plan.
   useEffect(() => {
     if (!isPremium) {
       return;
@@ -107,30 +108,26 @@ export function DocumentScreen() {
   }, [isPremium, load]);
 
   useEffect(() => {
-    if (userId && isPremium) {
-      void hydrateSavedForUser(userId);
+    if (savedItemsOwnerId && isPremium) {
+      void hydrateSavedForUser(savedItemsOwnerId);
     }
-  }, [hydrateSavedForUser, isPremium, userId]);
+  }, [hydrateSavedForUser, isPremium, savedItemsOwnerId]);
 
   const toggleSaved = () => {
     if (!document) {
       return;
     }
 
-    if (!userId) {
-      Alert.alert("Log in required", "Please log in to save guides.");
-      return;
-    }
-
-    if (!isPremium) {
-      showPremiumRequired("save");
+    // Prompts on the Free plan, offers a retry when the plan could not be
+    // checked, and waits quietly while it is still loading.
+    if (!savedItemsOwnerId || !requirePremium("save")) {
       return;
     }
 
     if (!isSaved) {
       haptic.success();
       void saveDocumentOptimistic({
-        clerkUserId: userId,
+        ownerId: savedItemsOwnerId,
         documentId: document.id,
         document: {
           id: `document:${document.id}`,
@@ -156,7 +153,7 @@ export function DocumentScreen() {
     }
 
     haptic.light();
-    void unsaveDocumentOptimistic({ clerkUserId: userId, documentId: document.id }).catch(
+    void unsaveDocumentOptimistic({ ownerId: savedItemsOwnerId, documentId: document.id }).catch(
       (unsaveError) => {
         console.warn("Unable to update saved document", unsaveError);
         showErrorToast("Could not remove guide", "Please try again in a moment.");

@@ -12,7 +12,7 @@ import { Surface } from "@/components/ui/surface";
 import { TextField } from "@/components/ui/text-field";
 import { Spacing } from "@/constants/theme";
 import { AuthNotice } from "@/features/auth/components/auth-layout";
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
+import { AccountGuard } from "@/features/auth/components/account-guard";
 import { getAuthErrorMessage } from "@/features/auth/errors";
 import { haptic } from "@/lib/haptics";
 
@@ -26,9 +26,9 @@ type PasswordUser = {
 
 export default function ChangePasswordScreen() {
   return (
-    <PremiumGuard>
+    <AccountGuard>
       <ChangePasswordContent />
-    </PremiumGuard>
+    </AccountGuard>
   );
 }
 

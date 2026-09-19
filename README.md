@@ -152,16 +152,17 @@ pnpm lint           # Run Expo lint
 
 ## Authentication and Access Flow
 
-The app separates authentication from content access.
+The app separates authentication from content access, and **an account is optional** (App Store Review Guideline 5.1.1(v)): people can browse, buy Premium and use it without registering. An account only makes Premium and saved guides available on their other devices.
 
-1. Users can browse the home tab without logging in.
-2. Premium screens are wrapped with a reusable premium guard that offers **Log in** and **Sign up**.
+1. Every tab and content screen is open without logging in. Guests see the same paywalls as Free members and can buy or restore Premium on the Billing tab.
+2. Only account-management screens (account, edit profile, change password, delete account) sit behind `AccountGuard`, which offers **Log in** and **Sign up**. Guests are invited to create an account, optionally, from the Profile tab and from Billing after buying.
 3. Login uses Clerk email + password (with optional email / SMS second factor).
 4. Sign-up collects optional first and last name, email and password, then verifies the email with a 6-digit Clerk code before the session is activated.
 5. After sign-up the app calls `ensure_user_profile` and stores the names in `app_users`, so the profile screen shows them straight away.
-6. Content access is decided by the Supabase profile's `user_plan`:
+6. Content access for members is decided by the Supabase profile's `user_plan`:
    - `Free` members see a Free-plan message with a **Buy Premium** button on country pages, guide pages, the Search and Saved tabs and any save action.
    - `PRO` members get everything.
+   Guests are RevenueCat anonymous users. When their App Store purchase owns Premium, the Edge Function `guest-premium` confirms it with RevenueCat and returns an access token, and the app reads Premium content through that function (content RLS only admits PRO members). Guest saves stay on the device and are copied to the account if the guest signs in later.
 7. The **Billing** tab sells Premium as a one-time purchase (USD 59, lifetime access) through RevenueCat / App Store In-App Purchase. After a purchase the app calls the Edge Function `revenuecat-sync` (`supabase/functions/revenuecat-sync`), which verifies the entitlement with RevenueCat and sets `user_plan` to `PRO`; the RevenueCat webhook (`supabase/functions/revenuecat-webhook`) keeps it in step afterwards (refunds, transfers). Polling the profile for the webhook is only the fallback. The full setup checklist (App Store Connect, RevenueCat, Supabase, testing, App Review) is in [IAP.md](IAP.md).
 
 The shared access state lives in:
@@ -170,10 +171,17 @@ The shared access state lives in:
 src/features/auth/access.tsx
 ```
 
-Premium route blocking is handled by:
+Guest Premium (no account) lives in:
 
 ```text
-src/features/auth/components/premium-guard.tsx
+src/features/billing/guest-premium.ts
+supabase/functions/guest-premium/index.ts
+```
+
+Account-only screens are guarded by:
+
+```text
+src/features/auth/components/account-guard.tsx
 src/features/auth/components/unauthenticated.tsx
 ```
 
@@ -183,6 +191,7 @@ The client expects Supabase to provide:
 
 - An `app_users` table with Clerk user identity data.
 - A `user_plan` value that resolves to `PRO` for verified premium users.
+- The Edge Function `guest-premium` (deployed with `--no-verify-jwt`, secret `GUEST_ACCESS_TOKEN_SECRET`) so guests who bought Premium can read content.
 - An `ensure_user_profile()` RPC used after sign-in to create or load the user's profile row.
 - RLS policies that keep premium data available only to verified PRO users.
 
@@ -191,7 +200,8 @@ The client expects Supabase to provide:
 - `src/components/app-providers.tsx` wires Clerk, Supabase token bridging, theme providers, auth access, and the root auth gate.
 - `src/app/(auth)/sign-in.tsx` owns the login form (password + optional second factor).
 - `src/app/(auth)/sign-up.tsx` owns account creation and email code verification.
-- `src/features/auth/components/unauthenticated.tsx` is the logged-out card with the Log in / Sign up buttons.
+- `src/features/auth/components/unauthenticated.tsx` is the logged-out card with the Log in / Sign up buttons, shown only on account screens.
+- `src/features/auth/components/optional-account-card.tsx` invites guests to create an optional account.
 - `src/features/billing/` holds the Billing tab, the Free-plan paywall card, the `usePremiumGate` hook and the RevenueCat wrapper (`purchases.ts`).
 - `src/components/home-demo.tsx` renders the public home tab and hides saved-data calls for non-PRO users.
 
@@ -200,7 +210,7 @@ The client expects Supabase to provide:
 - The UI follows DESIGN.md ("The Diplomatic Atelier"): tonal surfaces instead of divider lines, Poppins headings with Inter body text, and spring-based micro interactions.
 - Shared primitives live in `src/components/ui` (AppText, Surface, ListRow, FilterBar, IconButton, SearchField, TextField, state views).
 - Settings uses a native SwiftUI Form (Expo UI) on iOS; Saved and detail screens use native context menus.
-- The tab bar keeps Home public while Search, Saved, and Profile remain protected.
+- Every tab is public; Search and Saved show the paywall until Premium is unlocked, with or without an account.
 - The profile fallback name is `Welcome` when no user name has been saved.
 - Auth screens use top navigation headers with back buttons and form content placed below the title.
 
@@ -238,9 +248,9 @@ Keep code signing enabled for simulator builds. If building locally without an A
 
 Clerk sends the 6-digit code from the instance's email provider. Check the Clerk dashboard's email settings and the user's spam folder; the app offers a resend after a 30-second cooldown.
 
-### Premium Screens Show the Access Prompt
+### Premium Screens Show the Paywall
 
-The user must be signed in and have `user_plan = PRO` in Supabase. The app intentionally treats all other plans as free access.
+Members need `user_plan = PRO` in Supabase. Guests need an App Store purchase that `guest-premium` can confirm: the function must be deployed, `REVENUECAT_SECRET_API_KEY` set, and `REVENUECAT_ALLOW_SANDBOX=true` for sandbox (TestFlight / App Review) purchases. Everything else is treated as the Free plan.
 
 ## Disclaimer
 

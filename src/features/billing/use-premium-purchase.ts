@@ -1,10 +1,12 @@
-import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 
 import { useAuthAccess } from "@/features/auth/access";
-import { authHref } from "@/features/auth/return-to";
-import { BILLING_ROUTE } from "@/features/billing/premium";
+import {
+  useGuestPremiumStore,
+  verifyGuestPremium,
+  type GuestPremiumStatus,
+} from "@/features/billing/guest-premium";
 import { syncPremiumWithServer, type PremiumSyncResult } from "@/features/billing/premium-sync";
 import {
   OFFER_UNAVAILABLE_MESSAGE,
@@ -39,19 +41,29 @@ const SANDBOX_BLOCKED_NOTE =
   "Your purchase is confirmed, but sandbox (test) purchases are not enabled to unlock content on this server yet.";
 const ACTIVATION_PENDING_MESSAGE =
   "Your access is being activated and will appear within a few minutes.";
+/** The guest check could not reach the server; the purchase itself is safe. */
+const GUEST_PENDING_MESSAGE =
+  "We could not confirm it with our server yet. Tap “Already paid? Refresh status” in a moment.";
+/** A new purchase can take a moment to show up in RevenueCat's API. */
+const GUEST_ACTIVATION_ATTEMPTS = 3;
 
 function delay(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Drives the one-time Premium purchase. RevenueCat owns the transaction and
- * Supabase `user_plan` is what unlocks content (RLS), so after a purchase the
- * app asks the server to verify the entitlement with RevenueCat and mirror it
- * (`revenuecat-sync`), falling back to polling the profile for the webhook.
- * The server check matters because RevenueCat sends no webhook event for a
- * purchase it already knows: Apple's free re-download of an owned
- * non-consumable, or a restore that changes nothing.
+ * Drives the one-time Premium purchase. No account is needed to buy or
+ * restore (App Store Review Guideline 5.1.1(v)); an account is optional and
+ * only makes Premium available on the person's other devices.
+ *
+ * RevenueCat owns the transaction. For members, Supabase `user_plan` is what
+ * unlocks content (RLS), so after a purchase the app asks the server to
+ * verify the entitlement with RevenueCat and mirror it (`revenuecat-sync`),
+ * falling back to polling the profile for the webhook. The server check
+ * matters because RevenueCat sends no webhook event for a purchase it already
+ * knows: Apple's free re-download of an owned non-consumable, or a restore
+ * that changes nothing. For guests, `guest-premium` verifies the anonymous
+ * purchase with RevenueCat and returns the access token content reads use.
  *
  * The price shown comes from the loaded offer (RevenueCat → StoreKit →
  * `product.priceString`), never from a hardcoded list price, and `purchase`
@@ -61,9 +73,17 @@ function delay(ms: number) {
  * screen captions the price with it.
  */
 export function usePremiumPurchase() {
-  const router = useRouter();
-  const { userId, isSignedIn, planStatus, refreshProfile } = useAuthAccess();
+  const {
+    isAuthLoaded,
+    userId,
+    isSignedIn,
+    isGuest,
+    planStatus,
+    isPlanUnavailable,
+    refreshProfile,
+  } = useAuthAccess();
   const hasStoreEntitlement = usePurchasesStore((state) => state.hasStoreEntitlement);
+  const guestStatus = useGuestPremiumStore((state) => state.status);
   const offer = usePurchasesStore((state) => state.offer);
   const offerStatus = usePurchasesStore((state) => state.offerStatus);
   const offerError = usePurchasesStore((state) => state.offerError);
@@ -85,8 +105,18 @@ export function usePremiumPurchase() {
     }
   }, [planStatus]);
 
+  // A guest's sandbox purchase the server refused, even when it was found at
+  // launch rather than just bought.
+  useEffect(() => {
+    if (isGuest && guestStatus === "ignored") {
+      setActivationNote(SANDBOX_BLOCKED_NOTE);
+    }
+  }, [guestStatus, isGuest]);
+
   const loadOffer = useCallback(async () => {
-    if (!isAvailable) {
+    // Until Clerk has loaded, a signed-in member would look like a guest and
+    // be logged out of RevenueCat.
+    if (!isAvailable || !isAuthLoaded) {
       return;
     }
 
@@ -97,7 +127,7 @@ export function usePremiumPurchase() {
       console.warn("Unable to load the Premium offer", error);
       markOfferFailed(error);
     }
-  }, [isAvailable, userId]);
+  }, [isAuthLoaded, isAvailable, userId]);
 
   useEffect(() => {
     void loadOffer();
@@ -106,8 +136,11 @@ export function usePremiumPurchase() {
   const celebrate = useCallback(() => {
     setActivationNote(null);
     haptic.success();
-    showSuccessToast("Welcome to Premium", "Every guide is now unlocked.");
-  }, []);
+    showSuccessToast(
+      "Welcome to Premium",
+      isGuest ? "Every guide is now unlocked on this device." : "Every guide is now unlocked.",
+    );
+  }, [isGuest]);
 
   const waitForActivation = useCallback(async () => {
     for (let attempt = 0; attempt < ACTIVATION_ATTEMPTS; attempt += 1) {
@@ -123,7 +156,52 @@ export function usePremiumPurchase() {
     return false;
   }, [refreshProfile]);
 
+  /**
+   * Guests: asks `guest-premium` to confirm the purchase with RevenueCat,
+   * retrying briefly in case the new transaction is not visible there yet.
+   */
+  const verifyGuestUnlock = useCallback(async () => {
+    let status: GuestPremiumStatus = "inactive";
+
+    for (let attempt = 0; attempt < GUEST_ACTIVATION_ATTEMPTS; attempt += 1) {
+      status = await verifyGuestPremium({ force: true });
+
+      if (status !== "inactive") {
+        break;
+      }
+
+      await delay(ACTIVATION_INTERVAL_MS);
+    }
+
+    return status;
+  }, []);
+
+  const finishGuestUnlock = useCallback(async () => {
+    setState("activating");
+    setActivationNote(null);
+
+    const status = await verifyGuestUnlock();
+
+    if (status === "active") {
+      celebrate();
+      return;
+    }
+
+    if (status === "ignored") {
+      setActivationNote(SANDBOX_BLOCKED_NOTE);
+      showInfoToast("Payment received", SANDBOX_BLOCKED_NOTE);
+      return;
+    }
+
+    showInfoToast("Payment received", GUEST_PENDING_MESSAGE);
+  }, [celebrate, verifyGuestUnlock]);
+
   const finishUnlock = useCallback(async () => {
+    if (isGuest) {
+      await finishGuestUnlock();
+      return;
+    }
+
     setState("activating");
     setActivationNote(null);
 
@@ -155,16 +233,7 @@ export function usePremiumPurchase() {
     }
 
     showInfoToast("Payment received", ACTIVATION_PENDING_MESSAGE);
-  }, [celebrate, refreshProfile, waitForActivation]);
-
-  const ensureSignedIn = useCallback(() => {
-    if (isSignedIn && userId) {
-      return true;
-    }
-
-    router.push(authHref("/sign-in", BILLING_ROUTE));
-    return false;
-  }, [isSignedIn, router, userId]);
+  }, [celebrate, finishGuestUnlock, isGuest, refreshProfile, waitForActivation]);
 
   const explainUnavailable = useCallback(() => {
     Alert.alert(
@@ -173,8 +242,10 @@ export function usePremiumPurchase() {
     );
   }, []);
 
+  // No sign-in step: anyone can buy. Guests buy as RevenueCat's anonymous
+  // user, members under their Clerk id.
   const purchase = useCallback(async () => {
-    if (state !== "idle" || !ensureSignedIn()) {
+    if (state !== "idle" || !isAuthLoaded) {
       return;
     }
 
@@ -219,10 +290,10 @@ export function usePremiumPurchase() {
     } finally {
       setState("idle");
     }
-  }, [ensureSignedIn, explainUnavailable, finishUnlock, isAvailable, offer, state, userId]);
+  }, [explainUnavailable, finishUnlock, isAuthLoaded, isAvailable, offer, state, userId]);
 
   const restore = useCallback(async () => {
-    if (state !== "idle" || !ensureSignedIn()) {
+    if (state !== "idle" || !isAuthLoaded) {
       return;
     }
 
@@ -255,21 +326,68 @@ export function usePremiumPurchase() {
     } finally {
       setState("idle");
     }
-  }, [ensureSignedIn, explainUnavailable, finishUnlock, isAvailable, state, userId]);
+  }, [explainUnavailable, finishUnlock, isAuthLoaded, isAvailable, state, userId]);
+
+  /**
+   * "Already paid? Refresh status" for guests: re-reads the App Store
+   * purchases and asks `guest-premium` to confirm Premium again.
+   */
+  const refreshGuestPlan = useCallback(async () => {
+    if (isAvailable) {
+      try {
+        await syncPurchasesUser(null);
+      } catch (error) {
+        console.warn("Unable to refresh purchases", error);
+      }
+    }
+
+    const status = await verifyGuestPremium({ force: true });
+
+    if (status === "active") {
+      setActivationNote(null);
+      haptic.success();
+      showSuccessToast("Premium is active", "Every guide is unlocked on this device.");
+      return;
+    }
+
+    if (status === "ignored") {
+      setActivationNote(SANDBOX_BLOCKED_NOTE);
+      showInfoToast("Sandbox purchase found", SANDBOX_BLOCKED_NOTE);
+      return;
+    }
+
+    if (status === "error") {
+      showInfoToast(
+        "Could not check right now",
+        "Check your connection and try again in a moment.",
+      );
+      return;
+    }
+
+    showInfoToast(
+      "No purchase found",
+      "This device's App Store account has no Premium purchase yet. If you bought it before, tap Restore purchase.",
+    );
+  }, [isAvailable]);
 
   /**
    * "Already paid? Refresh status": re-checks the App Store account, asks the
-   * server to verify with RevenueCat, then reloads the profile and says what
-   * it found.
+   * server to verify with RevenueCat, then reloads the profile (or, for a
+   * guest, the purchase check) and says what it found.
    */
   const refreshPlan = useCallback(async () => {
-    if (state !== "idle") {
+    if (state !== "idle" || !isAuthLoaded) {
       return;
     }
 
     setState("syncing");
 
     try {
+      if (isGuest) {
+        await refreshGuestPlan();
+        return;
+      }
+
       let sync: PremiumSyncResult | null = null;
 
       if (isAvailable && isSignedIn && userId) {
@@ -288,7 +406,7 @@ export function usePremiumPurchase() {
       if (profile?.userPlan === "PRO") {
         setActivationNote(null);
         haptic.success();
-        showSuccessToast("Premium is active", "Every guide is unlocked on this account.");
+        showSuccessToast("Premium is active", "Every guide is unlocked.");
         return;
       }
 
@@ -301,7 +419,7 @@ export function usePremiumPurchase() {
       if (sync && !sync.entitlementActive && !hasStoreEntitlement) {
         showInfoToast(
           "No purchase found",
-          "No Premium purchase is linked to this account. If you bought it with this App Store account, tap Restore purchase.",
+          "We found no Premium purchase for you yet. If you bought it with this device's App Store account, tap Restore purchase.",
         );
         return;
       }
@@ -310,14 +428,31 @@ export function usePremiumPurchase() {
     } finally {
       setState("idle");
     }
-  }, [hasStoreEntitlement, isAvailable, isSignedIn, refreshProfile, state, userId]);
+  }, [
+    hasStoreEntitlement,
+    isAuthLoaded,
+    isAvailable,
+    isGuest,
+    isSignedIn,
+    refreshGuestPlan,
+    refreshProfile,
+    state,
+    userId,
+  ]);
 
   return {
+    /** Clerk has loaded, so the buttons know whether this is a guest or a member. */
+    isReady: isAuthLoaded,
     planStatus,
     isSignedIn,
+    isGuest,
     isAvailable,
-    /** Purchase exists on the App Store account but Supabase has not caught up. */
-    isAwaitingActivation: hasStoreEntitlement && planStatus === "free",
+    /**
+     * The App Store account owns Premium but it is not active here yet:
+     * Supabase has not caught up (members) or the server check has not
+     * succeeded (guests).
+     */
+    isAwaitingActivation: hasStoreEntitlement && (planStatus === "free" || isPlanUnavailable),
     /** Server-provided reason the purchase is not active yet, if it gave one. */
     activationNote,
     /** Apple's localised price of the offer `purchase` buys; null until loaded. */
