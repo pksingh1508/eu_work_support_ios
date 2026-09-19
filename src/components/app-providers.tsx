@@ -62,23 +62,43 @@ function AuthGate({ children }: PropsWithChildren) {
   return children;
 }
 
+/**
+ * Loads the saved items of whoever is using the app: a member's (Supabase)
+ * or a guest's (device only). Saves are a Premium feature, so nothing loads
+ * on the Free plan, and switching people (sign-in, sign-out) swaps the list.
+ */
 function SavedItemsHydrator() {
-  const { isAuthLoaded, isSignedIn, userId } = useAuthAccess();
+  const { isAuthLoaded, savedItemsOwnerId, hasPremiumAccess, planStatus } = useAuthAccess();
   const hydrateForUser = useSavedStore((state) => state.hydrateForUser);
   const resetSavedStore = useSavedStore((state) => state.reset);
+  const clearInMemory = useSavedStore((state) => state.clearInMemory);
 
   useEffect(() => {
     if (!isAuthLoaded) {
       return;
     }
 
-    if (!isSignedIn || !userId) {
-      resetSavedStore();
+    if (!savedItemsOwnerId || !hasPremiumAccess) {
+      if (planStatus === "free" || !savedItemsOwnerId) {
+        resetSavedStore();
+      } else if (useSavedStore.getState().userId !== savedItemsOwnerId) {
+        // Plan still being checked: keep the stored cache, but never show
+        // the previous person's list (e.g. a guest's, right after sign-in).
+        clearInMemory();
+      }
       return;
     }
 
-    void hydrateForUser(userId);
-  }, [hydrateForUser, isAuthLoaded, isSignedIn, resetSavedStore, userId]);
+    void hydrateForUser(savedItemsOwnerId);
+  }, [
+    clearInMemory,
+    hasPremiumAccess,
+    hydrateForUser,
+    isAuthLoaded,
+    planStatus,
+    resetSavedStore,
+    savedItemsOwnerId,
+  ]);
 
   return null;
 }

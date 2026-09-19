@@ -1,10 +1,6 @@
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
 import { SearchScreen } from "@/features/search/search-screen";
 
+// Open to everyone: no account is needed to browse, buy or use Premium.
 export default function SearchRoute() {
-  return (
-    <PremiumGuard>
-      <SearchScreen />
-    </PremiumGuard>
-  );
+  return <SearchScreen />;
 }

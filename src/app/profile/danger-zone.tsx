@@ -11,7 +11,7 @@ import { Screen } from "@/components/ui/screen";
 import { ScreenHeader } from "@/components/ui/screen-header";
 import { Surface } from "@/components/ui/surface";
 import { Spacing } from "@/constants/theme";
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
+import { AccountGuard } from "@/features/auth/components/account-guard";
 import { useTheme } from "@/hooks/use-theme";
 import { haptic } from "@/lib/haptics";
 import { clearCachedAuthSnapshot } from "@/lib/local-storage";
@@ -28,9 +28,9 @@ const consequences = [
 
 export default function DangerZoneScreen() {
   return (
-    <PremiumGuard>
+    <AccountGuard>
       <DangerZoneContent />
-    </PremiumGuard>
+    </AccountGuard>
   );
 }
 

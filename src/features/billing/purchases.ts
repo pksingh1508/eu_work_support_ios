@@ -22,9 +22,14 @@ import { UserFacingError } from "@/lib/user-facing-error";
  * purchase sheet, receipts, restores) and forwards every entitlement change
  * to the Supabase webhook, which is what flips `app_users.user_plan`.
  *
+ * No account is needed to buy: a guest purchases as RevenueCat's anonymous
+ * user and gets Premium through `guest-premium.ts`. Signing in (optional)
+ * moves the purchase to the Clerk user id so it follows them to other devices.
+ *
  * On-device `CustomerInfo` is mirrored into a small store so the UI can react
- * instantly (e.g. purchase made on another device, refund), while Supabase
- * stays the source of truth for content access.
+ * instantly (e.g. purchase made on another device, refund), while the server
+ * (Supabase for members, the `guest-premium` check for guests) stays the
+ * source of truth for content access.
  */
 
 type PremiumOfferPrice = {
@@ -51,6 +56,17 @@ export type OfferStatus = "idle" | "loading" | "ready" | "error";
 type PurchasesStoreState = {
   isConfigured: boolean;
   customerInfo: CustomerInfo | null;
+  /**
+   * Whose `customerInfo` this is: RevenueCat's anonymous guest user, a
+   * signed-in member, or not known yet (during a sign-in or sign-out).
+   */
+  customerKind: "anonymous" | "identified" | null;
+  /**
+   * A guest's purchase is being carried into the account that just signed
+   * in. The member's plan reads as unknown meanwhile, so nobody who paid is
+   * shown a paywall for the few seconds this takes.
+   */
+  isMovingGuestPurchase: boolean;
   /** True when the App Store account owns the Premium entitlement. */
   hasStoreEntitlement: boolean;
   /**
@@ -76,6 +92,8 @@ type PurchasesStoreState = {
 export const usePurchasesStore = create<PurchasesStoreState>((set) => ({
   isConfigured: false,
   customerInfo: null,
+  customerKind: null,
+  isMovingGuestPurchase: false,
   hasStoreEntitlement: false,
   offer: null,
   offerStatus: "idle",
@@ -207,7 +225,9 @@ export function configurePurchases(userId: string | null) {
 
 /**
  * Keeps the RevenueCat app user id equal to the Clerk user id (so the
- * webhook can map purchases to `app_users`) and logs out on sign-out.
+ * webhook can map purchases to `app_users`) and makes sure a guest is an
+ * anonymous RevenueCat user, so a guest purchase is never recorded under
+ * somebody's account.
  */
 export async function syncPurchasesUser(userId: string | null, email?: string | null) {
   if (!configurePurchases(userId)) {
@@ -215,19 +235,48 @@ export async function syncPurchasesUser(userId: string | null, email?: string | 
   }
 
   if (userId && activeAppUserId !== userId) {
+    // The mirrored CustomerInfo belongs to the previous identity until logIn
+    // answers; drop it so nothing reads a guest's entitlement as the member's.
+    usePurchasesStore.getState().setCustomerInfo(null);
+    usePurchasesStore.setState({ customerKind: null });
     const { customerInfo } = await Purchases.logIn(userId);
     activeAppUserId = userId;
     usePurchasesStore.getState().setCustomerInfo(customerInfo);
-  } else if (!userId && activeAppUserId) {
-    const customerInfo = await Purchases.logOut();
-    activeAppUserId = null;
-    usePurchasesStore.getState().setCustomerInfo(customerInfo);
-  } else if (userId) {
+  } else if (!userId && (activeAppUserId || !(await Purchases.isAnonymous()))) {
+    // `configure` without an id resumes the last cached id, which is still
+    // the previous member's when their Clerk session ended without a sign-out
+    // in the app (expired, or signed out elsewhere). Log out explicitly.
+    await logOutPurchases();
+  } else {
     await refreshCustomerInfo();
   }
 
+  usePurchasesStore.setState({ customerKind: userId ? "identified" : "anonymous" });
+
   if (userId && email) {
     await Purchases.setEmail(email);
+  }
+}
+
+async function logOutPurchases() {
+  // Never let the previous member's entitlement outlive their session, even
+  // when logOut fails (offline).
+  usePurchasesStore.getState().setCustomerInfo(null);
+  usePurchasesStore.setState({ customerKind: null });
+
+  try {
+    const customerInfo = await Purchases.logOut();
+    usePurchasesStore.getState().setCustomerInfo(customerInfo);
+  } catch (error) {
+    // Already anonymous: nothing to log out of.
+    if ((error as { code?: string | number } | null)?.code?.toString() !==
+      PURCHASES_ERROR_CODE.LOG_OUT_ANONYMOUS_USER_ERROR) {
+      throw error;
+    }
+
+    await refreshCustomerInfo();
+  } finally {
+    activeAppUserId = null;
   }
 }
 
@@ -396,6 +445,14 @@ export async function restorePremium() {
   return hasPremiumEntitlement(customerInfo);
 }
 
+const { NETWORK_ERROR, OFFLINE_CONNECTION_ERROR } = Purchases.PURCHASES_ERROR_CODE;
+
+/** A connectivity failure worth retrying later, rather than a definite answer. */
+export function isTransientPurchasesError(error: unknown) {
+  const code = (error as { code?: string | number } | null)?.code?.toString();
+  return code === NETWORK_ERROR || code === OFFLINE_CONNECTION_ERROR;
+}
+
 export function isPurchaseCancelled(error: unknown) {
   return Boolean((error as { userCancelled?: boolean | null })?.userCancelled);
 }
@@ -407,7 +464,7 @@ const STORE_OFFLINE_MESSAGE =
 const RECEIPT_MESSAGE =
   "We could not verify the purchase with the App Store. Please try again or use Restore purchase.";
 const OTHER_ACCOUNT_MESSAGE =
-  "This purchase is linked to another account. Log in with the account you used to buy Premium.";
+  "The App Store says this purchase is already in use elsewhere. Try Restore purchase, or contact support if Premium does not unlock.";
 
 const { PURCHASES_ERROR_CODE } = Purchases;
 

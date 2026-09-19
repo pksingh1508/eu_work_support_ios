@@ -1,10 +1,10 @@
 export const dataDeletion = {
   title: "EU Work Support Data Deletion Policy",
-  lastUpdated: "September 13, 2026",
+  lastUpdated: "September 19, 2026",
   blocks: [
     {
       type: "paragraph",
-      text: "This Data Deletion Policy explains how EU Work Support users can delete their account and request deletion of personal data. It applies to every account created in the app.",
+      text: "This Data Deletion Policy explains how EU Work Support users can delete their account and request deletion of personal data. It applies to every account created in the app and to people who use the app without an account. An account is optional.",
     },
     {
       type: "heading",
@@ -92,7 +92,7 @@ export const dataDeletion = {
     },
     {
       type: "paragraph",
-      text: "Users can delete saved countries and saved documents without deleting their entire account by using the saved or bookmark controls in the app. Removing a saved item deletes that saved relationship from the account.",
+      text: "Users can delete saved countries and saved documents without deleting their entire account by using the saved or bookmark controls in the app. Removing a saved item deletes that saved relationship from the account. People who use the app without an account keep saved items only on their device; removing them in the app, or deleting the app, deletes them.",
     },
     {
       type: "heading",
@@ -113,6 +113,10 @@ export const dataDeletion = {
     {
       type: "paragraph",
       text: "Purchase and entitlement records held by EU Work Support and our purchase provider, RevenueCat, are retained as described above. You can ask us to delete them by contacting support@euworksupport.eu. Deleting your account does not cancel or refund a purchase.",
+    },
+    {
+      type: "paragraph",
+      text: "If you bought Premium without an account, your purchase is recorded under an anonymous identifier generated on your device, and we hold no name or email address for you. To request deletion of that purchase record, email support@euworksupport.eu with the purchase date and, if possible, the order ID from your App Store receipt.",
     },
     {
       type: "heading",

@@ -12,15 +12,15 @@ import { ScreenHeader } from "@/components/ui/screen-header";
 import { Surface } from "@/components/ui/surface";
 import { Spacing } from "@/constants/theme";
 import { useAuthAccess } from "@/features/auth/access";
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
+import { AccountGuard } from "@/features/auth/components/account-guard";
 import { haptic } from "@/lib/haptics";
 import { clearCachedAuthSnapshot } from "@/lib/local-storage";
 
 export default function ProfileAccountScreen() {
   return (
-    <PremiumGuard>
+    <AccountGuard>
       <ProfileAccountContent />
-    </PremiumGuard>
+    </AccountGuard>
   );
 }
 

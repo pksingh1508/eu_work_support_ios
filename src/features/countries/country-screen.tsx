@@ -1,7 +1,6 @@
-import { useAuth } from "@clerk/expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/ui/app-text";
 import { Chip } from "@/components/ui/chip";
@@ -22,6 +21,7 @@ import { ErrorState } from "@/components/ui/state-views";
 import { Surface } from "@/components/ui/surface";
 import { getCountryCodeBySlug, getCountryNameBySlug } from "@/constants/country";
 import { Radii, Spacing } from "@/constants/theme";
+import { useAuthAccess } from "@/features/auth/access";
 import { CountryDocumentRow } from "@/features/countries/country-document-row";
 import {
   fetchCountry,
@@ -43,10 +43,10 @@ const POPULAR_RANK_THRESHOLD = 10;
 export function CountryScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { userId } = useAuth();
+  const { contentSource, savedItemsOwnerId } = useAuthAccess();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const countrySlug = Array.isArray(slug) ? slug[0] : slug;
-  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck, showPremiumRequired } =
+  const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck, requirePremium } =
     usePremiumGate();
   const offlineCountryName = getCountryNameBySlug(countrySlug);
   const requestIdRef = useRef(0);
@@ -78,7 +78,7 @@ export function CountryScreen() {
     setIsLoading(true);
     setError(null);
 
-    fetchCountry(countrySlug)
+    fetchCountry(countrySlug, contentSource)
       .then((nextCountry) => {
         if (requestIdRef.current !== requestId) {
           return;
@@ -101,10 +101,10 @@ export function CountryScreen() {
           setIsLoading(false);
         }
       });
-  }, [countrySlug]);
+  }, [contentSource, countrySlug]);
 
-  // Country rows are only readable by Premium members (RLS), so do not fetch
-  // until the plan is known and allows it.
+  // Country rows are only readable with Premium (RLS for members, the
+  // purchase check for guests), so do not fetch until the plan allows it.
   useEffect(() => {
     if (!isPremium) {
       return;
@@ -118,10 +118,10 @@ export function CountryScreen() {
   }, [isPremium, load]);
 
   useEffect(() => {
-    if (userId && isPremium) {
-      void hydrateSavedForUser(userId);
+    if (savedItemsOwnerId && isPremium) {
+      void hydrateSavedForUser(savedItemsOwnerId);
     }
-  }, [hydrateSavedForUser, isPremium, userId]);
+  }, [hydrateSavedForUser, isPremium, savedItemsOwnerId]);
 
   const categories = useMemo(
     () =>
@@ -144,20 +144,16 @@ export function CountryScreen() {
       return;
     }
 
-    if (!userId) {
-      Alert.alert("Log in required", "Please log in to save countries.");
-      return;
-    }
-
-    if (!isPremium) {
-      showPremiumRequired("save");
+    // Prompts on the Free plan, offers a retry when the plan could not be
+    // checked, and waits quietly while it is still loading.
+    if (!savedItemsOwnerId || !requirePremium("save")) {
       return;
     }
 
     if (!isSaved) {
       haptic.success();
       void saveCountryOptimistic({
-        clerkUserId: userId,
+        ownerId: savedItemsOwnerId,
         countryId: country.id,
         country: {
           id: `country:${country.id}`,
@@ -177,7 +173,7 @@ export function CountryScreen() {
     }
 
     haptic.light();
-    void unsaveCountryOptimistic({ clerkUserId: userId, countryId: country.id }).catch(
+    void unsaveCountryOptimistic({ ownerId: savedItemsOwnerId, countryId: country.id }).catch(
       (unsaveError) => {
         console.warn("Unable to update saved country", unsaveError);
         showErrorToast("Could not remove country", "Please try again in a moment.");

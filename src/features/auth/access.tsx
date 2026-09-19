@@ -9,6 +9,9 @@ import {
   useState,
 } from "react";
 
+import type { ContentSource } from "@/features/content/content-types";
+import { useGuestPremiumStore, verifyGuestPremium } from "@/features/billing/guest-premium";
+import { usePurchasesStore } from "@/features/billing/purchases";
 import {
   clearCachedAuthSnapshot,
   getCachedAuthSnapshot,
@@ -20,10 +23,17 @@ import { withTimeout } from "@/lib/with-timeout";
 export type UserPlan = "Free" | "PRO";
 
 /**
- * `unknown` while Clerk or the Supabase profile is still loading, so screens
- * can show a skeleton instead of flashing the paywall at Premium members.
+ * `unknown` while Clerk, the Supabase profile or a guest's purchase check is
+ * still loading, so screens can show a skeleton instead of flashing the
+ * paywall at people who own Premium.
  */
 export type PlanStatus = "unknown" | "free" | "pro";
+
+/**
+ * Saved items of a guest (no account) live only on this device under this
+ * owner id; members' saves are stored in Supabase under their Clerk id.
+ */
+export const GUEST_OWNER_ID = "guest";
 
 export type AuthAccessProfile = {
   userId: string;
@@ -38,20 +48,38 @@ export type AuthAccessProfile = {
 export type AuthAccessContextValue = {
   isAuthLoaded: boolean;
   isSignedIn: boolean;
+  /**
+   * Using the app without an account. Guests can buy and use Premium on this
+   * device; an account is optional and only adds access on other devices.
+   */
+  isGuest: boolean;
   userId: string | null | undefined;
   profile: AuthAccessProfile | null;
   userPlan: UserPlan | null;
   planStatus: PlanStatus;
-  /** True only for members whose Supabase profile says `PRO`. */
+  /**
+   * Members: their Supabase profile says `PRO`. Guests: the server confirmed
+   * this device's App Store purchase of Premium.
+   */
   hasPremiumAccess: boolean;
+  /** How Premium content is read for this person (see `ContentSource`). */
+  contentSource: ContentSource;
+  /**
+   * Whose saved items to show: the Clerk user id for members, `GUEST_OWNER_ID`
+   * (device-only saves) for guests, null while Clerk is loading.
+   */
+  savedItemsOwnerId: string | null;
   isProfileLoading: boolean;
   /**
-   * True when the plan could not be checked: the profile request failed or
-   * timed out and nothing is cached. Screens show a retry instead of a
-   * skeleton that never ends or a paywall the member does not deserve.
+   * True when the plan could not be checked: the profile request (members)
+   * or the purchase check (guests who own Premium) failed or timed out and
+   * nothing is cached. Screens show a retry instead of a skeleton that never
+   * ends or a paywall the person does not deserve.
    */
   isPlanUnavailable: boolean;
   refreshProfile: () => Promise<AuthAccessProfile | null>;
+  /** Re-checks the plan: the profile for members, the purchase for guests. */
+  refreshPlan: () => Promise<void>;
 };
 
 const defaultUserPlan: UserPlan = "Free";
@@ -90,6 +118,10 @@ function profileFromCachedSnapshot(): AuthAccessProfile | null {
 
 export function AuthAccessProvider({ children }: PropsWithChildren) {
   const { isLoaded, isSignedIn, userId } = useAuth();
+  const guestStatus = useGuestPremiumStore((state) => state.status);
+  const hasStoreEntitlement = usePurchasesStore((state) => state.hasStoreEntitlement);
+  const hasCustomerInfo = usePurchasesStore((state) => state.customerInfo !== null);
+  const isMovingGuestPurchase = usePurchasesStore((state) => state.isMovingGuestPurchase);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [hasProfileError, setHasProfileError] = useState(false);
   const [profile, setProfile] = useState<AuthAccessProfile | null>(() =>
@@ -195,43 +227,82 @@ export function AuthAccessProvider({ children }: PropsWithChildren) {
 
   const activeProfile = userId && profile?.userId === userId ? profile : null;
   const userPlan = activeProfile?.userPlan ?? null;
-  const isPlanUnavailable =
-    isLoaded && Boolean(isSignedIn) && !activeProfile && hasProfileError && !isProfileLoading;
+  const isGuest = isLoaded && !isSignedIn;
+  // A guest's plan comes from the server's check of this device's purchase.
+  // While that check runs (or when it failed) for a device whose App Store
+  // account owns Premium, the plan is unknown rather than Free. A check that
+  // starts before RevenueCat has reported (an expired token at launch) is
+  // unknown too, so a guest who owns Premium never sees the paywall flash.
+  const guestPlanStatus: PlanStatus =
+    guestStatus === "active"
+      ? "pro"
+      : (guestStatus === "checking" && (hasStoreEntitlement || !hasCustomerInfo)) ||
+          (guestStatus === "error" && hasStoreEntitlement)
+        ? "unknown"
+        : "free";
+  const isPlanUnavailable = isGuest
+    ? guestStatus === "error" && hasStoreEntitlement
+    : isLoaded && Boolean(isSignedIn) && !activeProfile && hasProfileError && !isProfileLoading;
   const shouldWaitForProfile = Boolean(isSignedIn) && !activeProfile && !hasProfileError;
   const planStatus: PlanStatus = !isLoaded
     ? "unknown"
     : !isSignedIn
-      ? "free"
+      ? guestPlanStatus
       : !activeProfile
         ? "unknown"
         : userPlan === "PRO"
           ? "pro"
-          : "free";
+          : isMovingGuestPurchase
+            ? "unknown"
+            : "free";
+  const contentSource: ContentSource = isSignedIn ? "member" : "guest";
+  const savedItemsOwnerId = !isLoaded ? null : isSignedIn ? (userId ?? null) : GUEST_OWNER_ID;
+
+  const refreshPlan = useCallback(async () => {
+    if (!isLoaded) {
+      return;
+    }
+
+    if (isSignedIn) {
+      await refreshProfile();
+      return;
+    }
+
+    await verifyGuestPremium({ force: true });
+  }, [isLoaded, isSignedIn, refreshProfile]);
 
   const value = useMemo(
     () => ({
       isAuthLoaded: isLoaded,
       isSignedIn: Boolean(isSignedIn),
+      isGuest,
       userId,
       profile: activeProfile,
       userPlan,
       planStatus,
       hasPremiumAccess: planStatus === "pro",
+      contentSource,
+      savedItemsOwnerId,
       isProfileLoading: isProfileLoading || shouldWaitForProfile,
       isPlanUnavailable,
       refreshProfile,
+      refreshPlan,
     }),
     [
       isLoaded,
       isSignedIn,
+      isGuest,
       userId,
       activeProfile,
       userPlan,
       planStatus,
+      contentSource,
+      savedItemsOwnerId,
       isProfileLoading,
       isPlanUnavailable,
       shouldWaitForProfile,
       refreshProfile,
+      refreshPlan,
     ],
   );
 

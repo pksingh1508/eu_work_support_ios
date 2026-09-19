@@ -10,6 +10,7 @@ import { SkeletonCard } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/state-views";
 import { TabScreen } from "@/components/ui/tab-screen";
 import { Spacing } from "@/constants/theme";
+import { useAuthAccess } from "@/features/auth/access";
 import { PaywallCard } from "@/features/billing/paywall-card";
 import { usePremiumGate } from "@/features/billing/premium-gate";
 import { SearchResultCard } from "@/features/search/search-result-card";
@@ -29,6 +30,7 @@ const SKELETON_COUNT = 3;
 
 export function SearchScreen() {
   const router = useRouter();
+  const { contentSource } = useAuthAccess();
   const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck } = usePremiumGate();
   const inputRef = useRef<TextInput>(null);
   const requestIdRef = useRef(0);
@@ -56,7 +58,7 @@ export function SearchScreen() {
     setIsSearching(true);
     setError(null);
 
-    searchPublishedDocuments(nextQuery)
+    searchPublishedDocuments(nextQuery, contentSource)
       .then((nextResults) => {
         if (requestIdRef.current === requestId) {
           setResults(nextResults);
@@ -76,7 +78,7 @@ export function SearchScreen() {
           setIsSearching(false);
         }
       });
-  }, []);
+  }, [contentSource]);
 
   useEffect(() => {
     if (!shouldSearch) {

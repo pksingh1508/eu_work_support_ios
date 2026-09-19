@@ -6,6 +6,24 @@ export type FAQItem = {
 
 export const FAQs: FAQItem[] = [
   {
+    id: "premium-without-account",
+    question: "Do I need an account to buy Premium?",
+    answer:
+      "No. You can buy and use Premium without creating an account. Open the Billing tab and tap Buy Premium; it unlocks on this device straight away.",
+  },
+  {
+    id: "premium-restore",
+    question: "How do I get Premium back after reinstalling or on a new iPhone or iPad?",
+    answer:
+      "Open the Billing tab and tap Restore purchase while signed in to the App Store with the Apple Account you bought Premium with. No EU Work Support account is needed.",
+  },
+  {
+    id: "premium-other-devices",
+    question: "What does creating an account add?",
+    answer:
+      "An account is optional. If you create one or log in, your Premium and saved guides are linked to it, so you can use them on your other devices by logging in there. You can create an account at any time from the Profile tab.",
+  },
+  {
     id: "account-details",
     question: "How do I update my account details?",
     answer:

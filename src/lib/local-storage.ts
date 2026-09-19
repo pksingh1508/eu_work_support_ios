@@ -33,6 +33,9 @@ export const localStorageKeys = {
   authUserPlan: 'auth.userPlan',
   authCachedAt: 'auth.cachedAt',
   savedItemsSnapshot: 'saved.itemsSnapshot',
+  guestSavedItems: 'saved.guestItems',
+  guestPremiumSession: 'billing.guestPremiumSession',
+  pendingGuestPurchaseMove: 'billing.pendingGuestPurchaseMove',
   themePreference: 'settings.themePreference',
 } as const;
 

@@ -1,3 +1,5 @@
+import { fetchGuestContent } from "@/features/billing/guest-premium";
+import type { ContentSource } from "@/features/content/content-types";
 import { supabase } from "@/lib/supabase";
 
 const savedCountrySelect = `
@@ -118,7 +120,11 @@ async function ensureUserProfile() {
   }
 }
 
-export async function fetchCountryIdBySlug(slug: string) {
+export async function fetchCountryIdBySlug(slug: string, source: ContentSource) {
+  if (source === "guest") {
+    return fetchGuestContent<string | null>({ action: "countryId", slug });
+  }
+
   const { data, error } = await supabase
     .from("countries")
     .select("id")

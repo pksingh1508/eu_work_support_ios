@@ -1,10 +1,6 @@
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
 import { ProfileScreen } from "@/features/profile/profile-screen";
 
+// Open to everyone: no account is needed to browse, buy or use Premium.
 export default function ProfileRoute() {
-  return (
-    <PremiumGuard>
-      <ProfileScreen />
-    </PremiumGuard>
-  );
+  return <ProfileScreen />;
 }

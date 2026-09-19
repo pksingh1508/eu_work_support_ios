@@ -216,7 +216,7 @@ export default function SignInScreen() {
       headerTitle="Log in"
       backIcon="close"
       title="Welcome back"
-      subtitle="Log in to continue your country research, saved guides and more support."
+      subtitle="Log in to use your Premium and saved guides on this device. An account is optional."
       error={error}
     >
       <TextField

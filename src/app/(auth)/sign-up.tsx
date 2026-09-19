@@ -350,7 +350,7 @@ export default function SignUpScreen() {
       subtitle={
         isVerifyStep
           ? `Enter the ${CODE_LENGTH}-digit code we sent to ${normalizedEmail} to finish setting up your account.`
-          : "Join EU Work Support for country guides, search and saved items across Europe."
+          : "Optional: an account lets you use Premium and your saved guides on all your devices. You can keep using the app without one."
       }
       error={error}
     >

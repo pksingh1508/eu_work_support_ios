@@ -1,10 +1,6 @@
-import { PremiumGuard } from "@/features/auth/components/premium-guard";
 import { SavedScreen } from "@/features/saved/saved-screen";
 
+// Open to everyone: no account is needed to browse, buy or use Premium.
 export default function SavedRoute() {
-  return (
-    <PremiumGuard>
-      <SavedScreen />
-    </PremiumGuard>
-  );
+  return <SavedScreen />;
 }

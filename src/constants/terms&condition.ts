@@ -1,6 +1,6 @@
 export const termsAndCondition = {
   title: "EU Work Support Terms & Conditions",
-  lastUpdated: "September 13, 2026",
+  lastUpdated: "September 19, 2026",
   blocks: [
     {
       type: "paragraph",
@@ -32,7 +32,7 @@ export const termsAndCondition = {
     },
     {
       type: "paragraph",
-      text: "Some features require an account. When you create or use an account, you agree to:",
+      text: "An account is optional. You can browse the App and buy and use Premium without one. An account lets you use Premium and your saved items on your other devices. If you create or use an account, you agree to:",
     },
     {
       type: "bullets",
@@ -61,7 +61,7 @@ export const termsAndCondition = {
     },
     {
       type: "paragraph",
-      text: "Premium is linked to the EU Work Support account you are logged into when you buy it. If you reinstall the App or switch devices, log in with the same account and use Restore purchase on the Billing tab. We use RevenueCat to validate purchases and manage Premium access.",
+      text: "You do not need an account to buy or use Premium. Premium belongs to the Apple Account (app store account) you buy it with and unlocks on the device you buy it on straight away. After reinstalling the App, or on another device, use Restore purchase on the Billing tab while signed in to the App Store with the same Apple Account. If you choose to create an EU Work Support account or log in, your Premium is also linked to that account, so you can use it on your other devices by logging in. We use RevenueCat to validate purchases and manage Premium access.",
     },
     {
       type: "paragraph",

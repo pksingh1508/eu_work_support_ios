@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/expo";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View, type ListRenderItem } from "react-native";
@@ -11,6 +10,7 @@ import { Screen } from "@/components/ui/screen";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/state-views";
 import { TabScreen } from "@/components/ui/tab-screen";
 import { Layout, Spacing } from "@/constants/theme";
+import { useAuthAccess } from "@/features/auth/access";
 import { PaywallCard } from "@/features/billing/paywall-card";
 import { usePremiumGate } from "@/features/billing/premium-gate";
 import { SavedCard } from "@/features/saved/saved-card";
@@ -33,7 +33,7 @@ const filterOptions: readonly FilterOption<SavedFilter>[] = [
 
 export function SavedScreen() {
   const router = useRouter();
-  const { userId } = useAuth();
+  const { savedItemsOwnerId } = useAuthAccess();
   const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck } = usePremiumGate();
   const countries = useSavedStore((state) => state.countries);
   const documents = useSavedStore((state) => state.documents);
@@ -64,13 +64,16 @@ export function SavedScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!userId || !isPremium) {
-        resetSavedStore();
+      if (!savedItemsOwnerId || !isPremium) {
+        // Keep the cache while the plan is still being checked.
+        if (planStatus === "free") {
+          resetSavedStore();
+        }
         return;
       }
 
-      void hydrateForUser(userId);
-    }, [hydrateForUser, isPremium, resetSavedStore, userId]),
+      void hydrateForUser(savedItemsOwnerId);
+    }, [hydrateForUser, isPremium, planStatus, resetSavedStore, savedItemsOwnerId]),
   );
 
   const openItem = useCallback(
@@ -87,7 +90,7 @@ export function SavedScreen() {
 
   const removeItem = useCallback(
     (item: SavedItem) => {
-      if (!userId) {
+      if (!savedItemsOwnerId || !isPremium) {
         return;
       }
 
@@ -95,8 +98,11 @@ export function SavedScreen() {
 
       const mutation =
         item.type === "country"
-          ? unsaveCountryOptimistic({ clerkUserId: userId, countryId: item.countryId })
-          : unsaveDocumentOptimistic({ clerkUserId: userId, documentId: item.documentId });
+          ? unsaveCountryOptimistic({ ownerId: savedItemsOwnerId, countryId: item.countryId })
+          : unsaveDocumentOptimistic({
+              ownerId: savedItemsOwnerId,
+              documentId: item.documentId,
+            });
 
       mutation.catch((error) => {
         console.warn("Unable to remove saved item", error);
@@ -105,7 +111,7 @@ export function SavedScreen() {
 
       showUnsavedToast(item.type === "country" ? item.name : item.title, item.type);
     },
-    [unsaveCountryOptimistic, unsaveDocumentOptimistic, userId],
+    [isPremium, savedItemsOwnerId, unsaveCountryOptimistic, unsaveDocumentOptimistic],
   );
 
   const renderItem: ListRenderItem<SavedItem> = useCallback(
@@ -159,7 +165,10 @@ export function SavedScreen() {
     <ErrorState
       title="Saved guides are unavailable"
       message="We could not load your saved guides right now."
-      action={{ label: "Try again", onPress: () => userId && void refresh(userId) }}
+      action={{
+        label: "Try again",
+        onPress: () => savedItemsOwnerId && void refresh(savedItemsOwnerId),
+      }}
     />
   ) : savedItems.length === 0 ? (
     <EmptyState

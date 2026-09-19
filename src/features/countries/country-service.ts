@@ -1,10 +1,13 @@
+import { fetchGuestContent } from "@/features/billing/guest-premium";
 import {
   firstRelation,
   normalizeContentJson,
   type ContentJson,
+  type ContentSource,
 } from "@/features/content/content-types";
 import { supabase } from "@/lib/supabase";
 
+// Mirrored in supabase/functions/guest-premium/index.ts; keep them in step.
 const countrySelect = `
   id,
   slug,
@@ -155,7 +158,12 @@ function mapCountryResponse(row: CountryResponse): Country {
   };
 }
 
-export async function fetchCountry(slug: string) {
+export async function fetchCountry(slug: string, source: ContentSource) {
+  if (source === "guest") {
+    const row = await fetchGuestContent<CountryResponse | null>({ action: "country", slug });
+    return row ? mapCountryResponse(row) : null;
+  }
+
   const { data, error } = await supabase
     .from("countries")
     .select(countrySelect)

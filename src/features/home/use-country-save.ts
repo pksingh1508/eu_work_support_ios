@@ -1,9 +1,7 @@
-import { useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 
 import { countryDetails, getCountrySlug, type CountryName } from "@/constants/country";
 import { useAuthAccess } from "@/features/auth/access";
-import { authHref } from "@/features/auth/return-to";
 import { usePremiumGate } from "@/features/billing/premium-gate";
 import { useSavedCountrySlugs, useSavedStore } from "@/features/saved/saved-store";
 import { haptic } from "@/lib/haptics";
@@ -15,8 +13,7 @@ import { showErrorToast, showSavedToast, showUnsavedToast } from "@/lib/toast";
  * lazily (once per slug) and applies the optimistic store mutation.
  */
 export function useCountrySave() {
-  const router = useRouter();
-  const { userId } = useAuthAccess();
+  const { isAuthLoaded, contentSource, savedItemsOwnerId } = useAuthAccess();
   const { planStatus, showPremiumRequired } = usePremiumGate();
   const savedCountrySlugs = useSavedCountrySlugs();
   const pendingMutations = useSavedStore((state) => state.pendingMutations);
@@ -29,18 +26,13 @@ export function useCountrySave() {
   const countryIdsBySlugRef = useRef<Record<string, string>>({});
   const [resolvingSlug, setResolvingSlug] = useState<string | null>(null);
 
-  // The bookmark stays visible for every signed-in member; Free-plan taps
-  // get the upgrade prompt instead of a failed request.
-  const canSave = Boolean(userId);
+  // The bookmark is visible to everyone, account or not; Free-plan taps get
+  // the upgrade prompt instead of a failed request.
+  const canSave = isAuthLoaded;
 
   const toggleSave = useCallback(
     async (country: CountryName) => {
-      if (!userId) {
-        router.push(authHref("/sign-in", "/"));
-        return;
-      }
-
-      if (planStatus !== "pro") {
+      if (planStatus !== "pro" || !savedItemsOwnerId) {
         if (planStatus === "free") {
           showPremiumRequired("save", country);
         }
@@ -55,7 +47,7 @@ export function useCountrySave() {
         let countryId = countryIdsBySlugRef.current[slug];
 
         if (!countryId) {
-          const resolvedId = await fetchCountryIdBySlug(slug);
+          const resolvedId = await fetchCountryIdBySlug(slug, contentSource);
 
           if (!resolvedId) {
             throw new Error("Country not found.");
@@ -68,7 +60,7 @@ export function useCountrySave() {
         if (shouldSave) {
           haptic.success();
           void saveCountryOptimistic({
-            clerkUserId: userId,
+            ownerId: savedItemsOwnerId,
             countryId,
             country: {
               id: `country:${countryId}`,
@@ -86,7 +78,7 @@ export function useCountrySave() {
           showSavedToast(country, "country");
         } else {
           haptic.light();
-          void unsaveCountryOptimistic({ clerkUserId: userId, countryId }).catch(
+          void unsaveCountryOptimistic({ ownerId: savedItemsOwnerId, countryId }).catch(
             (error) => {
               console.warn("Unable to update saved country", error);
               showErrorToast(
@@ -108,13 +100,13 @@ export function useCountrySave() {
       }
     },
     [
+      contentSource,
       planStatus,
-      router,
       saveCountryOptimistic,
       savedCountrySlugs,
+      savedItemsOwnerId,
       showPremiumRequired,
       unsaveCountryOptimistic,
-      userId,
     ],
   );
 

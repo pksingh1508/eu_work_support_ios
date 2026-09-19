@@ -6,6 +6,14 @@ the previous one.
 
 ## 1. How it works
 
+**No account is needed to buy or use Premium** (App Store Review Guideline
+5.1.1(v); the September 2026 review rejected a build that sent guests to
+sign-in first). A guest buys as RevenueCat's anonymous user and Premium
+unlocks on that device; creating an account is optional and only makes
+Premium (and saved guides) available on the person's other devices.
+
+Signed-in member:
+
 ```
 User taps "Buy Premium"
   → react-native-purchases (RevenueCat SDK) shows the App Store payment sheet (StoreKit 2)
@@ -16,6 +24,26 @@ User taps "Buy Premium"
   → Independently, RevenueCat calls the Edge Function `revenuecat-webhook` for every
     new event (purchase, refund, transfer) and keeps user_plan in step later on
   → The app re-reads the profile and unlocks countries, guides, search and saves
+```
+
+Guest (not signed in):
+
+```
+User taps "Buy Premium" (no sign-in step)
+  → RevenueCat SDK, as the anonymous user `$RCAnonymousID:…`, shows the App Store sheet
+  → Apple charges the user's App Store account; RevenueCat grants `premium` to that anonymous id
+  → The app calls the Edge Function `guest-premium` (action `session`), which asks
+    RevenueCat's REST API whether that anonymous id owns `premium` and returns a
+    signed access token (7 days, renewed daily)
+  → Content RLS only admits PRO members, so the guest reads countries, guides, search and
+    the country ids for saves through `guest-premium` with that token (service role on
+    the server, same selects and filters as the member queries)
+  → Saves stay on the device (MMKV) until the guest signs in, then they are copied to
+    the account
+  → If the guest later signs up or logs in, `Purchases.logIn(clerkUserId)` moves the
+    purchase to the account (plus a restore when RevenueCat does not merge on its own,
+    which happens for accounts that already have an anonymous alias), and
+    `revenuecat-sync` sets user_plan = 'PRO'
 ```
 
 Two server paths set `user_plan` on purpose. The webhook only fires for a
@@ -92,8 +120,9 @@ What is already in the repo:
      description `Lifetime access to every country guide and document.`
    - Review information: upload a screenshot of the Billing tab (any device
      size) and add a review note such as "One-time purchase that unlocks all
-     country guides. Log in with the test account below to see the Free-plan
-     state." The product must show status **Ready to Submit**.
+     country guides. No account is needed: open the Billing tab (or any
+     country) without logging in and tap Buy Premium." The product must show
+     status **Ready to Submit**.
    - Availability: all territories where the app is sold.
 4. **Attach the product to the next app version.** On the version page, section
    _In-App Purchases and Subscriptions_, add the product. Apple only reviews a
@@ -200,6 +229,20 @@ What is already in the repo:
    `event_type = 'TEST'`. Then run a sandbox purchase (section 6) and confirm
    `app_users.user_plan` becomes `PRO` for that Clerk user.
 
+7. **Deploy the guest function** (Premium without an account). It uses the
+   same `REVENUECAT_SECRET_API_KEY` as step 5 plus its own token secret:
+
+   ```bash
+   supabase secrets set GUEST_ACCESS_TOKEN_SECRET=$(openssl rand -hex 32)
+   supabase functions deploy guest-premium --no-verify-jwt
+   ```
+
+   `--no-verify-jwt` is required: guests send no user JWT at all. Without
+   this function a guest's purchase succeeds but content stays locked (the
+   app shows "We could not confirm it with our server yet"), which is exactly
+   what App Review would see. `supabase/tests/guest-premium.test.ts` tests it
+   offline (`deno test --allow-env --allow-read --allow-net supabase/tests/guest-premium.test.ts`).
+
 ## 5. App configuration and builds
 
 1. **Environment variables.** Add to `.env` (local) and to your EAS
@@ -267,12 +310,30 @@ What is already in the repo:
       App Store Connect sandbox refund): webhook sends `CANCELLATION` /
       `EXPIRATION`, `user_plan` returns to `Free`, paywall reappears.
 - [ ] Airplane mode: Buy Premium shows a clear error toast, nothing hangs.
-- [ ] Sign out: Billing tab asks the user to log in before buying.
+- [ ] Fresh install, **no account**: open a country (paywall) → Buy Premium →
+      the App Store sheet opens straight away (no sign-in step), "Welcome to
+      Premium" follows, and countries, guides, Search and Saved all work.
+      Kill and relaunch: still Premium, no paywall flash.
+- [ ] Still without an account, save a country and a guide, then create an
+      account from Profile or Billing: Premium stays active and the saves
+      appear in the account.
+- [ ] Second device (or reinstall), no account: Restore purchase unlocks
+      Premium. Logging in to the account from the previous step also does.
+- [ ] Sign out: the app becomes a Free guest; Buy Premium and Restore
+      purchase still work without logging in.
 
-## 7. App Review requirements (Guideline 3.1)
+## 7. App Review requirements (Guidelines 3.1 and 5.1.1(v))
 
 Already covered by the implementation; verify before submitting:
 
+- **No registration before purchase (5.1.1(v)).** Buy Premium and Restore
+  purchase work without an account, and every screen Premium unlocks works
+  for a guest. The app explains that an account is optional and only adds
+  access on other devices, and offers sign-up at any time (Profile tab, the
+  Billing tab after buying). Account deletion stays in Profile → Delete
+  account for people who create one.
+- `guest-premium` is deployed and `REVENUECAT_ALLOW_SANDBOX=true` is set:
+  reviewers buy in the sandbox, without an account.
 - Premium is sold only through In-App Purchase. Do not link to the website
   checkout from inside the app.
 - The Billing tab shows the price, that it is a one-time payment, what it
@@ -280,8 +341,9 @@ Already covered by the implementation; verify before submitting:
 - Free users can still browse the Home tab; the paywall explains what Premium
   unlocks and never blocks login, account deletion or support.
 - Submit the IAP product together with the binary the first time and mention
-  in the review notes how to reach the paywall (any country card) and which
-  test account is on the Free plan.
+  in the review notes how to reach the paywall (any country card) and that no
+  account is needed to buy. Keep a demo account in the review information for
+  the optional account features.
 - Update the App Store privacy "nutrition label": Purchases are collected by
   RevenueCat (linked to identity, used for app functionality).
 
@@ -314,6 +376,9 @@ key. No app code changes are needed.
 | "Sandbox purchase found … not enabled to unlock content on this server"                                      | `revenuecat-sync` saw an active entitlement whose purchase is sandbox, and `REVENUECAT_ALLOW_SANDBOX` is not `true`     | Section 10.1 step 2                                                                                                               |
 | "Already paid? Refresh status" says "Not active yet" although RevenueCat shows the entitlement               | `revenuecat-sync` is not deployed, or `REVENUECAT_SECRET_API_KEY` is missing / not a V1 secret key (function log shows `sync_not_configured` or `revenuecat_unauthorized`) | Section 4.5                                                                                                                       |
 | "Purchase failed" with a receipt or "invalid" message on the simulator with the StoreKit file                | The StoreKit public certificate is not uploaded to RevenueCat                                                           | Section 10.3, step 4                                                                                                              |
+| Guest (not logged in) buys, then "We could not confirm it with our server yet" and content stays locked      | `guest-premium` is not deployed (HTTP 404 in the dev log), or `REVENUECAT_SECRET_API_KEY` is missing (503 `not_configured`) | Section 4.7                                                                                                                       |
+| Guest buys, then "Your purchase is confirmed, but sandbox (test) purchases are not enabled…"                  | `REVENUECAT_ALLOW_SANDBOX` is not `true`                                                                                | Section 10.1 step 2                                                                                                               |
+| Guest created an account after buying, but the account shows the Free plan                                  | RevenueCat did not merge the anonymous purchase (the account already had an anonymous alias) and the automatic restore failed | Billing → Restore purchase while logged in; RevenueCat's restore behavior must be _Transfer to new App User ID_                    |
 
 ## 10. Sandbox purchase test, step by step
 
@@ -349,8 +414,8 @@ treats that as "no purchase" and stays quiet) and use one of the routes below.
    region you want to see.
 2. **Let sandbox events unlock content.** Every sandbox, TestFlight, Test
    Store _and App Review_ purchase reaches the webhook with
-   `environment: "SANDBOX"`, and `revenuecat-webhook` ignores those unless
-   this secret is set:
+   `environment: "SANDBOX"`, and `revenuecat-webhook`, `revenuecat-sync` and
+   `guest-premium` ignore those unless this secret is set:
 
    ```bash
    supabase secrets set REVENUECAT_ALLOW_SANDBOX=true
@@ -368,7 +433,9 @@ treats that as "no purchase" and stays quiet) and use one of the routes below.
    sandbox testers you create (and Apple) can produce sandbox events for
    this app.
 
-3. **Use a Free test account.** Log into the app with a Clerk account whose
+3. **Pick the route to test.** App Review buys **without an account**, so
+   always run the guest route (no login at all). The member route is
+   optional: log into the app with a Clerk account whose
    `app_users.user_plan` is `Free` (check in the Supabase table editor), so
    you can watch it flip to `PRO`.
 
@@ -405,8 +472,9 @@ Accounts).
    you tap Buy Premium, and you enter the sandbox tester there (never your
    real Apple ID). After that the row appears and shows
    "[Environment: Sandbox]".
-3. **Buy.** In the app log in with the Free test account → Billing tab. The
-   price should read `$59.00` for a United States tester; a tester in another
+3. **Buy.** Guest route: do not log in, just open the Billing tab (or any
+   country's paywall). Member route: log in with the Free test account first,
+   then open the Billing tab. The price should read `$59.00` for a United States tester; a tester in another
    region sees that storefront's price instead (for example `249,99 zł` for
    Poland). The app never hardcodes a price: it shows Apple's `priceString`
    for the exact RevenueCat package it will purchase, a spinner while that
@@ -419,15 +487,23 @@ Accounts).
    "[Environment: Sandbox]"; confirm with Face ID or the tester password.
    Nothing is charged.
 4. **Watch the activation.** The button shows "Payment confirmed. Activating
-   your Premium access…" while the app asks `revenuecat-sync` to verify the
-   purchase with RevenueCat (about a second) and, only if that function is
-   not deployed, polls the profile for 15 seconds waiting for the webhook.
-   You should get the "Welcome to Premium" toast and the country pages open.
-   If you get "Payment received … will appear within a few minutes" instead,
-   neither path flipped the plan; go to step 5.
+   your Premium access…". As a guest the app asks `guest-premium` to confirm
+   the purchase and gets "Welcome to Premium … unlocked on this device";
+   "We could not confirm it with our server yet" means that function is not
+   deployed or cannot reach RevenueCat (section 4.7). As a member the app asks
+   `revenuecat-sync` to verify the purchase with RevenueCat (about a second)
+   and, only if that function is not deployed, polls the profile for 15
+   seconds waiting for the webhook. You should get the "Welcome to Premium"
+   toast and the country pages open. If you get "Payment received … will
+   appear within a few minutes" instead, neither path flipped the plan; go
+   to step 5.
 5. **Verify the chain.**
-   - RevenueCat → _Customers_ → search the Clerk user id (`user_…`): the
-     `premium` entitlement is active and marked sandbox.
+   - Guest route: RevenueCat → _Customers_ (with _View sandbox data_ on) →
+     the newest `$RCAnonymousID:…` customer has the active `premium`
+     entitlement, and Supabase → Edge Functions → `guest-premium` → Logs shows
+     "Premium active". Nothing is written to Supabase tables for a guest.
+   - Member route: RevenueCat → _Customers_ → search the Clerk user id
+     (`user_…`): the `premium` entitlement is active and marked sandbox.
    - RevenueCat → _Integrations_ → _Webhooks_ → delivery log: the
      `NON_RENEWING_PURCHASE` event returned `200` (a body containing
      `ignored` means step 10.1.2 is missing).
@@ -435,16 +511,19 @@ Accounts).
      `subscription_entitlements`, and `app_users.user_plan = 'PRO'`.
    - Supabase → Edge Functions → `revenuecat-sync` → Logs: "Premium active"
      for the Clerk user id (or the reason it declined).
-6. **Restore.** Delete the app, install it again, log in with the same Clerk
-   account, tap **Restore purchase** → Premium comes back with no payment.
+6. **Restore.** Delete the app, install it again and tap **Restore
+   purchase** without logging in (guest) → Premium comes back with no
+   payment. Member route: log in with the same Clerk account instead; Premium
+   is active straight away, and Restore purchase also works.
    Buying the same product again shows Apple's "You've already purchased
    this" sheet, which is correct for a non-consumable: Apple re-delivers the
    original transaction for free, RevenueCat records nothing new and sends no
    webhook event, and the app still activates through `revenuecat-sync`.
 7. **Reset for another run.** App Store Connect → Users and Access →
    _Sandbox_ → _Testers_ → your tester → _Clear Purchase History_; delete the
-   customer in RevenueCat (_Customers_ → the user → _Delete_); in the
-   Supabase SQL editor:
+   customer in RevenueCat (_Customers_ → the `$RCAnonymousID:…` guest or the
+   `user_…` member → _Delete_); for the member route, in the Supabase SQL
+   editor:
 
    ```sql
    update public.app_users set user_plan = 'Free'
@@ -527,6 +606,12 @@ ios/EUWorkSupport.xcworkspace` (run `npx expo prebuild --platform ios`
 - `REVENUECAT_SECRET_API_KEY` is set and `revenuecat-sync` is deployed
   (section 4.5), so a reviewer whose sandbox account already bought the
   product in an earlier review still gets Premium.
+- `guest-premium` is deployed with `GUEST_ACCESS_TOKEN_SECRET` (section 4.7),
+  so a reviewer who buys **without an account** gets Premium.
+- RevenueCat → Project settings → _Restore behavior_ is _Transfer to new App
+  User ID_ (not _Keep with original App User ID_, which RevenueCat only allows
+  for apps that require an account before purchase), and _Sandbox testing
+  access_ is _Anybody_.
 - The RevenueCat webhook sends both sandbox and production events.
 - The StoreKit configuration file only affects Xcode runs; App Store and
   TestFlight builds ignore it, so nothing needs to be removed.

@@ -11,6 +11,14 @@ export type ContentJson = {
   sections?: ContentSection[];
 };
 
+/**
+ * Where Premium content is read from. Members (signed in with Clerk) query
+ * Supabase directly and RLS checks their plan. Guests have no session, so
+ * their reads go through the `guest-premium` Edge Function, which checks the
+ * device's App Store purchase instead (see `features/billing/guest-premium.ts`).
+ */
+export type ContentSource = "member" | "guest";
+
 export function normalizeContentJson(value: unknown): ContentJson {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { sections: [] };
