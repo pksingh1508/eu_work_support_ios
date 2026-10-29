@@ -5,9 +5,12 @@ import { AppText } from "@/components/ui/app-text";
 import { Entrance } from "@/components/ui/entrance";
 import { SearchField } from "@/components/ui/search-field";
 import { Layout, Radii, Spacing } from "@/constants/theme";
+import type { ReadableGutter } from "@/hooks/use-readable-gutter";
 import { useTheme } from "@/hooks/use-theme";
 
 type HomeHeroProps = {
+  /** Side padding that keeps the content in the readable column. */
+  gutter?: ReadableGutter;
   greetingName?: string | null;
   onSearchPress: () => void;
   onLayout: (height: number) => void;
@@ -17,7 +20,7 @@ type HomeHeroProps = {
  * Welcome block at the top of Home: soft gradient, editorial title and the
  * search shortcut.
  */
-export function HomeHero({ greetingName, onSearchPress, onLayout }: HomeHeroProps) {
+export function HomeHero({ gutter, greetingName, onSearchPress, onLayout }: HomeHeroProps) {
   const { colors } = useTheme();
   const title = greetingName ? `Welcome back, ${greetingName}` : "Welcome";
 
@@ -27,7 +30,13 @@ export function HomeHero({ greetingName, onSearchPress, onLayout }: HomeHeroProp
         colors={[colors.headerStart, colors.background]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
-        style={styles.gradient}
+        style={[
+          styles.gradient,
+          {
+            paddingLeft: gutter?.left ?? Layout.screenPadding,
+            paddingRight: gutter?.right ?? Layout.screenPadding,
+          },
+        ]}
       >
         <View
           pointerEvents="none"
@@ -54,7 +63,6 @@ export function HomeHero({ greetingName, onSearchPress, onLayout }: HomeHeroProp
 
 const styles = StyleSheet.create({
   gradient: {
-    paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
     overflow: "hidden",

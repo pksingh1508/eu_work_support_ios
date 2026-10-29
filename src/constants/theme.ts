@@ -285,7 +285,18 @@ export const Motion = {
 export const Layout = {
   screenPadding: 20,
   contentMaxWidth: 640,
+  /** Widest a column of text and cards gets on large screens (iPhone Duo open, iPad). */
+  readableMaxWidth: 720,
   bottomPadding: Platform.select({ ios: 32, default: 24 }) ?? 24,
   headerButtonSize: 44,
   hitSlop: 10,
 } as const;
+
+/**
+ * Centres content in a readable column on wide windows; a no-op on phones.
+ */
+export const ReadableColumn: ViewStyle = {
+  width: "100%",
+  maxWidth: Layout.readableMaxWidth,
+  alignSelf: "center",
+};

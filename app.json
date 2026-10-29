@@ -84,6 +84,8 @@
         }
       ],
       "./plugins/with-google-pod-modular-headers",
+      "./plugins/with-pod-deployment-target",
+      "./plugins/with-scene-lifecycle",
       "expo-router",
       [
         "expo-splash-screen",

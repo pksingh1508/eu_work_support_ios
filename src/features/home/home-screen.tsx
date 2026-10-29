@@ -40,6 +40,7 @@ import { HomeHero } from "@/features/home/home-hero";
 import { PopularDestinations } from "@/features/home/popular-destinations";
 import { useCountrySave } from "@/features/home/use-country-save";
 import { useSavedStore } from "@/features/saved/saved-store";
+import { useReadableGutter, type ReadableGutter } from "@/hooks/use-readable-gutter";
 import { useTheme } from "@/hooks/use-theme";
 
 type HomeListItem =
@@ -55,6 +56,7 @@ export function HomeScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const gutter = useReadableGutter();
   const { isAuthLoaded, savedItemsOwnerId, hasPremiumAccess, planStatus, profile } =
     useAuthAccess();
   const hydrateSavedForUser = useSavedStore((state) => state.hydrateForUser);
@@ -177,6 +179,7 @@ export function HomeScreen() {
         case "hero":
           return (
             <HomeHero
+              gutter={gutter}
               greetingName={profile?.firstName ?? null}
               onSearchPress={openSearch}
               onLayout={setHeroHeight}
@@ -185,6 +188,7 @@ export function HomeScreen() {
         case "popular":
           return (
             <PopularDestinations
+              gutter={gutter}
               onPressCountry={openCountry}
               onLayout={setPopularHeight}
             />
@@ -192,6 +196,7 @@ export function HomeScreen() {
         case "filters":
           return (
             <HomeFilterBar
+              gutter={gutter}
               value={activeFilter}
               onChange={setActiveFilter}
               dockStyle={dockStyle}
@@ -215,7 +220,9 @@ export function HomeScreen() {
           );
 
           return (
-            <View style={styles.cardWrap}>
+            <View
+              style={[styles.cardWrap, { paddingLeft: gutter.left, paddingRight: gutter.right }]}
+            >
               {item.index < Motion.stagger.maxIndex ? (
                 <Entrance index={item.index}>{card}</Entrance>
               ) : (
@@ -232,6 +239,7 @@ export function HomeScreen() {
       activeFilter,
       canSave,
       dockStyle,
+      gutter,
       isSaved,
       isSaving,
       openCountry,
@@ -282,16 +290,17 @@ function keyExtractor(item: HomeListItem) {
 }
 
 type HomeFilterBarProps = {
+  gutter: ReadableGutter;
   value: HomeFilterKey;
   onChange: (value: HomeFilterKey) => void;
   dockStyle: StyleProp<AnimatedStyle<ViewStyle>>;
 };
 
-function HomeFilterBar({ value, onChange, dockStyle }: HomeFilterBarProps) {
+function HomeFilterBar({ gutter, value, onChange, dockStyle }: HomeFilterBarProps) {
   const { colors } = useTheme();
 
   return (
-    <View style={styles.filters}>
+    <View style={[styles.filters, { paddingLeft: gutter.left, paddingRight: gutter.right }]}>
       <Animated.View
         pointerEvents="none"
         style={[
@@ -324,11 +333,9 @@ const styles = StyleSheet.create({
     paddingBottom: Layout.bottomPadding + Spacing.huge,
   },
   filters: {
-    paddingHorizontal: Layout.screenPadding,
     paddingVertical: Spacing.sm + Spacing.xxs,
   },
   cardWrap: {
-    paddingHorizontal: Layout.screenPadding,
     marginTop: Spacing.md,
   },
 });

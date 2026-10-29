@@ -20,17 +20,29 @@ import {
   type PopularDestination,
 } from "@/constants/country";
 import { Layout, Radii, Shadows, Spacing } from "@/constants/theme";
+import type { ReadableGutter } from "@/hooks/use-readable-gutter";
 import { useTheme } from "@/hooks/use-theme";
 
 const CARD_WIDTH = 300;
 const CARD_HEIGHT = 224;
 
 type PopularDestinationsProps = {
+  /** Side padding that lines the heading and first card up with the readable column. */
+  gutter?: ReadableGutter;
   onPressCountry: (country: CountryName) => void;
   onLayout: (height: number) => void;
 };
 
-export function PopularDestinations({ onPressCountry, onLayout }: PopularDestinationsProps) {
+export function PopularDestinations({
+  gutter,
+  onPressCountry,
+  onLayout,
+}: PopularDestinationsProps) {
+  const inset = {
+    paddingLeft: gutter?.left ?? Layout.screenPadding,
+    paddingRight: gutter?.right ?? Layout.screenPadding,
+  };
+
   return (
     <View
       onLayout={(event: LayoutChangeEvent) => onLayout(event.nativeEvent.layout.height)}
@@ -39,7 +51,7 @@ export function PopularDestinations({ onPressCountry, onLayout }: PopularDestina
       <SectionHeading
         title="Popular destinations"
         eyebrow="Editor's picks"
-        style={styles.heading}
+        style={inset}
       />
       <ScrollView
         horizontal
@@ -47,7 +59,7 @@ export function PopularDestinations({ onPressCountry, onLayout }: PopularDestina
         decelerationRate="fast"
         snapToInterval={CARD_WIDTH + Spacing.lg}
         snapToAlignment="start"
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, inset]}
       >
         {popularDestinations.map((country, index) => (
           <Entrance key={country} index={index} from="none">
@@ -125,11 +137,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.sm,
   },
-  heading: {
-    paddingHorizontal: Layout.screenPadding,
-  },
   scroll: {
-    paddingHorizontal: Layout.screenPadding,
     paddingVertical: Spacing.lg,
     gap: Spacing.lg,
   },

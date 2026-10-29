@@ -11,11 +11,15 @@ import {
 } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
-import { Layout, Spacing, type ColorToken } from "@/constants/theme";
+import { Layout, ReadableColumn, Spacing, type ColorToken } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 type ScreenProps = PropsWithChildren<{
-  /** Safe area edges to respect. Tabs and stack screens default to top only. */
+  /**
+   * Safe area edges to respect. Defaults to top and the sides: the bottom is
+   * left to the tab bar / home indicator, while side insets matter on
+   * landscape and foldable windows (iPhone Duo puts its tab rail on the right).
+   */
   edges?: Edge[];
   /** Render children inside a vertical ScrollView. */
   scroll?: boolean;
@@ -31,7 +35,7 @@ type ScreenProps = PropsWithChildren<{
   scrollProps?: Omit<ScrollViewProps, "contentContainerStyle" | "style">;
 }>;
 
-const defaultEdges: Edge[] = ["top"];
+const defaultEdges: Edge[] = ["top", "left", "right"];
 
 /**
  * Screen scaffold: safe area, background, optional scroll + keyboard handling.
@@ -60,6 +64,7 @@ export function Screen({
       style={styles.flex}
       contentContainerStyle={[
         styles.scrollContent,
+        ReadableColumn,
         padded ? styles.padded : null,
         contentContainerStyle,
       ]}
@@ -67,7 +72,9 @@ export function Screen({
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.flex, padded ? styles.padded : null, contentContainerStyle]}>
+    <View
+      style={[styles.flex, ReadableColumn, padded ? styles.padded : null, contentContainerStyle]}
+    >
       {children}
     </View>
   );
@@ -88,7 +95,7 @@ export function Screen({
       edges={edges}
       style={[styles.flex, { backgroundColor: colors[background] }, style]}
     >
-      {header}
+      {header ? <View style={ReadableColumn}>{header}</View> : null}
       {content}
     </SafeAreaView>
   );

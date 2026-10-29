@@ -37,7 +37,7 @@ export function AuthLayout({
     <Screen
       scroll
       keyboard
-      edges={["top", "bottom"]}
+      edges={["top", "bottom", "left", "right"]}
       header={<ScreenHeader padded title={headerTitle} backIcon={backIcon} />}
       contentContainerStyle={styles.content}
     >
