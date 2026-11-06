@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode, Ref } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +29,14 @@ type ScreenProps = PropsWithChildren<{
   keyboard?: boolean;
   /** Content rendered above the scroll area (headers that must not scroll). */
   header?: ReactNode;
+  /**
+   * The screen shows the native navigation bar (transparent Liquid Glass
+   * header). A scrolling screen then lets UIKit inset its scroll view under
+   * the bar, which is what makes large titles collapse and content blur
+   * under the glass; a static screen pads below the bar with the safe area.
+   */
+  nativeHeader?: boolean;
+  scrollRef?: Ref<ScrollView>;
   background?: ColorToken;
   contentContainerStyle?: StyleProp<ViewStyle>;
   style?: StyleProp<ViewStyle>;
@@ -36,12 +44,15 @@ type ScreenProps = PropsWithChildren<{
 }>;
 
 const defaultEdges: Edge[] = ["top", "left", "right"];
+const sideEdges: Edge[] = ["left", "right"];
 
 /**
  * Screen scaffold: safe area, background, optional scroll + keyboard handling.
  */
 export function Screen({
-  edges = defaultEdges,
+  edges: edgesProp,
+  nativeHeader = false,
+  scrollRef,
   scroll = false,
   padded = true,
   keyboard = false,
@@ -53,13 +64,15 @@ export function Screen({
   children,
 }: ScreenProps) {
   const { colors } = useTheme();
+  const edges = edgesProp ?? (nativeHeader && scroll ? sideEdges : defaultEdges);
 
   const body = scroll ? (
     <ScrollView
+      ref={scrollRef}
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-      showsVerticalScrollIndicator={false}
+      showsVerticalScrollIndicator={nativeHeader}
       {...scrollProps}
       style={styles.flex}
       contentContainerStyle={[

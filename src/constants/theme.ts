@@ -21,7 +21,7 @@ const lightColors = {
   surfaceHighest: "#D6DDF3",
   text: INK,
   textSecondary: "#5B6478",
-  textTertiary: "#8A93A8",
+  textTertiary: "#5F6880",
   primary: "#0058BC",
   primaryContainer: "#0070EB",
   primarySoft: "#E4EEFF",
@@ -62,7 +62,7 @@ const darkColors: ThemeColors = {
   surfaceHighest: "#2F3D5C",
   text: "#F3F5FB",
   textSecondary: "#B5BED2",
-  textTertiary: "#7E89A3",
+  textTertiary: "#939DB5",
   primary: "#8FBEFF",
   primaryContainer: "#4A93F1",
   primarySoft: "rgba(143, 190, 255, 0.16)",
@@ -100,15 +100,22 @@ export const Colors = {
 export type ThemeName = keyof typeof Colors;
 
 /**
- * Editorial type scale. Poppins carries display and titles, Inter carries
- * everything that needs to be read at length. Line heights follow the
- * 1.25 (headings) / 1.5 (body) rule from AGENT.md.
+ * Type scale. Poppins carries the brand (display and titles); everything that
+ * is read, tapped or scanned uses the system font (SF Pro), which Apple tunes
+ * for legibility at every size (optical sizes, automatic tracking) and which
+ * follows Bold Text.
+ *
+ * Sizes follow the iOS text styles at the default Dynamic Type size (body 17,
+ * callout 16, subhead 15, footnote 13, caption 12). Reading styles use ~1.5
+ * line height (WCAG 1.4.8) instead of the tighter UI leading.
  */
+const SYSTEM = undefined;
+
 export const Typography = {
   display: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 34,
-    lineHeight: 40,
+    lineHeight: 41,
     letterSpacing: -0.8,
   },
   title1: {
@@ -124,77 +131,80 @@ export const Typography = {
     letterSpacing: -0.3,
   },
   title3: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: -0.2,
+    fontFamily: SYSTEM,
+    fontWeight: "600",
+    fontSize: 20,
+    lineHeight: 25,
   },
   headline: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: SYSTEM,
+    fontWeight: "600",
     fontSize: 17,
     lineHeight: 22,
-    letterSpacing: -0.2,
+  },
+  /** Long-form reading text: guides, policies, explanations. */
+  reading: {
+    fontFamily: SYSTEM,
+    fontSize: 17,
+    lineHeight: 26,
   },
   body: {
-    fontFamily: FontFamily.body,
-    fontSize: 16,
+    fontFamily: SYSTEM,
+    fontSize: 17,
     lineHeight: 24,
-    letterSpacing: 0,
   },
   bodyMedium: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 16,
+    fontFamily: SYSTEM,
+    fontWeight: "500",
+    fontSize: 17,
     lineHeight: 24,
-    letterSpacing: 0,
   },
   callout: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 15,
-    lineHeight: 21,
-    letterSpacing: 0,
+    fontFamily: SYSTEM,
+    fontWeight: "500",
+    fontSize: 16,
+    lineHeight: 22,
   },
   subhead: {
-    fontFamily: FontFamily.body,
+    fontFamily: SYSTEM,
     fontSize: 15,
     lineHeight: 21,
-    letterSpacing: 0,
   },
   footnote: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: SYSTEM,
     fontSize: 13,
     lineHeight: 18,
-    letterSpacing: 0,
   },
   caption: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: SYSTEM,
     fontSize: 12,
     lineHeight: 16,
-    letterSpacing: 0.1,
   },
   label: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: SYSTEM,
+    fontWeight: "600",
     fontSize: 13,
-    lineHeight: 16,
-    letterSpacing: 0.1,
+    lineHeight: 18,
   },
   eyebrow: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 1,
+    fontFamily: SYSTEM,
+    fontWeight: "600",
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.6,
     textTransform: "uppercase",
   },
   button: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: 0,
+    fontFamily: SYSTEM,
+    fontWeight: "600",
+    fontSize: 17,
+    lineHeight: 22,
   },
   buttonSmall: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 14,
-    lineHeight: 18,
-    letterSpacing: 0,
+    fontFamily: SYSTEM,
+    fontWeight: "600",
+    fontSize: 15,
+    lineHeight: 20,
   },
 } as const satisfies Record<string, TextStyle>;
 
@@ -287,6 +297,11 @@ export const Layout = {
   contentMaxWidth: 640,
   /** Widest a column of text and cards gets on large screens (iPhone Duo open, iPad). */
   readableMaxWidth: 720,
+  /**
+   * Widest a block of running text gets: ~65-70 characters of 17pt SF Pro,
+   * inside the 50-75 range reading research recommends.
+   */
+  proseMaxWidth: 600,
   bottomPadding: Platform.select({ ios: 32, default: 24 }) ?? 24,
   headerButtonSize: 44,
   hitSlop: 10,

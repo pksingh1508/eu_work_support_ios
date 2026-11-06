@@ -2,7 +2,6 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
 import { SettingsForm } from "@/features/settings/settings-form";
 import { useThemeStore } from "@/features/theme/theme-store";
 
@@ -13,7 +12,7 @@ export default function ProfileSettingsScreen() {
   const setPreference = useThemeStore((state) => state.setPreference);
 
   return (
-    <Screen padded={false} header={<ScreenHeader padded title="Settings" />}>
+    <Screen nativeHeader padded={false} edges={[]}>
       <SettingsForm
         preference={preference}
         onPreferenceChange={setPreference}

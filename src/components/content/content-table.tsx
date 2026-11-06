@@ -1,7 +1,7 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
 
 import { AppText } from "@/components/ui/app-text";
-import { Surface } from "@/components/ui/surface";
 import { Radii, Spacing } from "@/constants/theme";
 import {
   stringifyValue,
@@ -9,93 +9,191 @@ import {
 } from "@/features/content/content-types";
 import { useTheme } from "@/hooks/use-theme";
 
-const NARROW_COLUMN_WIDTH = 170;
-const WIDE_COLUMN_WIDTH = 220;
+/**
+ * Below this width a grid can't give every column a readable line, so rows
+ * are stacked instead. ~2 columns of 30+ characters need about 520pt.
+ */
+const GRID_MIN_WIDTH = 520;
 
+/**
+ * Guide tables (documents, fees, timelines, mistakes).
+ *
+ * Narrow tables are stacked on phones (the pattern responsive-table research
+ * recommends for few-column data): each row becomes a block with the first
+ * cell as its title and the other cells labelled by their column name. On
+ * wide windows (iPhone Duo open, iPad) the real grid is shown and cells wrap.
+ * Nothing scrolls sideways and no text is ever cut off.
+ */
 export function ContentTable({ section }: { section: ContentSection }) {
-  const { colors } = useTheme();
-  const columns = Array.isArray(section.columns) ? section.columns : [];
-  const rows = Array.isArray(section.rows) ? section.rows : [];
-  const columnCount = Math.max(
-    columns.length,
-    ...rows.map((row) => (Array.isArray(row) ? row.length : 0)),
-    1,
+  const [width, setWidth] = useState(0);
+  const columns = (Array.isArray(section.columns) ? section.columns : []).map((column) =>
+    stringifyValue(column),
   );
-  const columnWidth = columnCount <= 2 ? WIDE_COLUMN_WIDTH : NARROW_COLUMN_WIDTH;
+  const rows = (Array.isArray(section.rows) ? section.rows : [])
+    .filter(Array.isArray)
+    .map((row) => row.map((cell) => stringifyValue(cell)));
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const onLayout = (event: LayoutChangeEvent) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    setWidth((current) => (current === nextWidth ? current : nextWidth));
+  };
 
   return (
-    <Surface>
+    <View onLayout={onLayout}>
       {section.title ? (
-        <AppText variant="title3" style={styles.title}>
+        <AppText variant="title3" accessibilityRole="header" selectable style={styles.title}>
           {section.title}
         </AppText>
       ) : null}
+      {width === 0 ? null : width >= GRID_MIN_WIDTH ? (
+        <GridTable columns={columns} rows={rows} />
+      ) : (
+        <StackedTable columns={columns} rows={rows} />
+      )}
+    </View>
+  );
+}
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        bounces={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={[styles.table, { backgroundColor: colors.surfaceLow }]}>
-          {columns.length > 0 ? (
-            <View style={[styles.headerRow, { backgroundColor: colors.surfaceHigh }]}>
-              {columns.map((column, index) => (
-                <View key={`${column}-${index}`} style={[styles.cell, { width: columnWidth }]}>
-                  <AppText variant="eyebrow" color="primary">
-                    {column}
+type TableProps = {
+  columns: string[];
+  rows: string[][];
+};
+
+function StackedTable({ columns, rows }: TableProps) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.surfaceLowest }]}>
+      {rows.map((row, rowIndex) => {
+        const [first = "", ...rest] = row;
+        const restLabelled = rest.map((value, index) => ({
+          label: columns[index + 1] ?? "",
+          value,
+        }));
+        const isPair = row.length <= 2;
+
+        return (
+          <View
+            key={rowIndex}
+            accessible
+            style={[
+              styles.stackedRow,
+              rowIndex > 0
+                ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.outlineStrong }
+                : null,
+            ]}
+          >
+            <AppText variant="headline" selectable>
+              {first}
+            </AppText>
+            {restLabelled.map(({ label, value }, index) =>
+              value ? (
+                <View key={index} style={isPair ? styles.pairValue : styles.labelledValue}>
+                  {/* A two-column table reads as "term: explanation", so the
+                      column name would only repeat itself on every row. */}
+                  {!isPair && label ? (
+                    <AppText variant="footnote" color="textSecondary" selectable>
+                      {label}
+                    </AppText>
+                  ) : null}
+                  <AppText variant="body" selectable>
+                    {value}
                   </AppText>
                 </View>
-              ))}
-            </View>
-          ) : null}
+              ) : null,
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 
-          {rows.map((row, rowIndex) => (
-            <View
-              key={`${section.title ?? "table"}-${rowIndex}`}
-              style={[
-                styles.row,
-                rowIndex % 2 === 0 ? { backgroundColor: colors.surfaceLowest } : null,
-              ]}
+function GridTable({ columns, rows }: TableProps) {
+  const { colors } = useTheme();
+  const columnCount = Math.max(columns.length, ...rows.map((row) => row.length), 1);
+  const indexes = Array.from({ length: columnCount }, (_, index) => index);
+  // The first column names the row and is usually short; give the rest more room.
+  const flexFor = (index: number) => (index === 0 ? 1 : 1.4);
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.surfaceLowest }]}>
+      {columns.length > 0 ? (
+        <View
+          style={[styles.gridRow, styles.gridHeader, { backgroundColor: colors.surfaceLow }]}
+        >
+          {indexes.map((index) => (
+            <AppText
+              key={index}
+              variant="label"
+              color="textSecondary"
+              style={[styles.gridCell, { flex: flexFor(index) }]}
             >
-              {(Array.isArray(row) ? row : []).map((cell, cellIndex) => (
-                <View key={`${rowIndex}-${cellIndex}`} style={[styles.cell, { width: columnWidth }]}>
-                  <AppText
-                    variant={cellIndex === 0 ? "callout" : "subhead"}
-                    color={cellIndex === 0 ? "text" : "textSecondary"}
-                  >
-                    {stringifyValue(cell)}
-                  </AppText>
-                </View>
-              ))}
-            </View>
+              {columns[index] ?? ""}
+            </AppText>
           ))}
         </View>
-      </ScrollView>
-    </Surface>
+      ) : null}
+      {rows.map((row, rowIndex) => (
+        <View
+          key={rowIndex}
+          style={[
+            styles.gridRow,
+            rowIndex > 0 || columns.length > 0
+              ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.outlineStrong }
+              : null,
+          ]}
+        >
+          {indexes.map((index) => (
+            <AppText
+              key={index}
+              variant={index === 0 ? "headline" : "body"}
+              selectable
+              style={[styles.gridCell, { flex: flexFor(index) }]}
+            >
+              {row[index] ?? ""}
+            </AppText>
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   title: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  table: {
-    borderRadius: Radii.md,
+  card: {
+    borderRadius: Radii.lg,
     overflow: "hidden",
-    minWidth: "100%",
   },
-  headerRow: {
+  stackedRow: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.xs,
+  },
+  pairValue: {
+    marginTop: Spacing.xxs,
+  },
+  labelledValue: {
+    marginTop: Spacing.xs,
+    gap: Spacing.xxs,
+  },
+  gridRow: {
     flexDirection: "row",
+    paddingHorizontal: Spacing.sm,
   },
-  row: {
-    flexDirection: "row",
+  gridHeader: {
+    paddingVertical: Spacing.xs,
   },
-  cell: {
-    paddingHorizontal: Spacing.md,
+  gridCell: {
+    minWidth: 0,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.md,
   },
 });

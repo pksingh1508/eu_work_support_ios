@@ -1,16 +1,10 @@
 import { StyleSheet, View } from "react-native";
 
+import { ContentSectionView } from "@/components/content/content-sections";
+import { AppButton } from "@/components/ui/app-button";
 import { AppText } from "@/components/ui/app-text";
-import { Entrance } from "@/components/ui/entrance";
-import { Icon } from "@/components/ui/icon";
-import { IconBadge } from "@/components/ui/icon-badge";
-import type { IconName } from "@/components/ui/icon-names";
-import { PressableScale } from "@/components/ui/pressable-scale";
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
-import { Surface } from "@/components/ui/surface";
-import { Radii, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
+import { Layout, Spacing } from "@/constants/theme";
 import { openMailTo } from "@/lib/url";
 
 const SUPPORT_EMAIL = "support@euworksupport.eu";
@@ -30,133 +24,81 @@ const reviewParagraphs = [
 ];
 
 export default function SourcesAndDisclaimerScreen() {
-  const { colors } = useTheme();
-
   return (
-    <Screen scroll header={<ScreenHeader padded title="Sources and disclaimer" />}>
-      <Entrance index={0}>
-        <Surface tone="primary">
-          <IconBadge icon="shield" tone="primary" size={52} />
-          <AppText variant="title2" style={styles.heroTitle}>
-            Independent information, clearly sourced
-          </AppText>
-          <AppText variant="body" color="textSecondary" style={styles.heroBody}>
-            EU Work Support is an independent educational and informational
-            application. We are not affiliated with, endorsed by, or officially
-            connected to any government, embassy, consulate, immigration
-            authority, visa office, university, college, or employment
-            authority.
-          </AppText>
-        </Surface>
-      </Entrance>
+    <Screen nativeHeader scroll contentContainerStyle={styles.content}>
+      <AppText variant="title1" accessibilityRole="header" selectable>
+        Independent information, clearly sourced
+      </AppText>
+      <AppText variant="reading" selectable style={styles.lead}>
+        EU Work Support is an independent educational and informational application. We
+        are not affiliated with, endorsed by, or officially connected to any government,
+        embassy, consulate, immigration authority, visa office, university, college, or
+        employment authority.
+      </AppText>
 
-      <ContentCard index={1} icon="sources" title="Our sources" paragraphs={sourceParagraphs} />
-      <ContentCard index={2} icon="alert" title="Disclaimer" paragraphs={disclaimerParagraphs} />
-      <ContentCard
-        index={3}
-        icon="checkCircle"
-        title="Content review process"
-        paragraphs={reviewParagraphs}
+      <Section title="Our sources" paragraphs={sourceParagraphs} />
+      <View style={styles.section}>
+        <ContentSectionView
+          section={{
+            type: "warning",
+            title: "Disclaimer",
+            content: disclaimerParagraphs.join("\n\n"),
+          }}
+        />
+      </View>
+      <Section title="Content review process" paragraphs={reviewParagraphs} />
+      <Section
+        title="Reporting outdated information"
+        paragraphs={[
+          "Report inaccurate or outdated information through Support in the app or by emailing us directly.",
+        ]}
       />
-
-      <Entrance index={4} style={styles.section}>
-        <Surface>
-          <CardHeading icon="reportProblem" title="Reporting outdated information" />
-          <AppText variant="body" color="textSecondary" style={styles.paragraph}>
-            Report inaccurate or outdated information through Support in the app
-            or by emailing us directly.
-          </AppText>
-          <PressableScale
-            onPress={() => openMailTo(SUPPORT_EMAIL, "Report outdated information")}
-            scaleTo={0.97}
-            haptic="light"
-            accessibilityRole="link"
-            accessibilityLabel={`Email ${SUPPORT_EMAIL}`}
-            style={[styles.emailChip, { backgroundColor: colors.primarySoft }]}
-          >
-            <Icon name="mail" size={16} color={colors.primary} />
-            <AppText variant="label" color="primary">
-              {SUPPORT_EMAIL}
-            </AppText>
-          </PressableScale>
-        </Surface>
-      </Entrance>
+      <AppButton
+        label={`Email ${SUPPORT_EMAIL}`}
+        icon="mail"
+        variant="secondary"
+        style={styles.button}
+        onPress={() => openMailTo(SUPPORT_EMAIL, "Report outdated information")}
+      />
     </Screen>
   );
 }
 
-function ContentCard({
-  index,
-  icon,
-  title,
-  paragraphs,
-}: {
-  index: number;
-  icon: IconName;
-  title: string;
-  paragraphs: string[];
-}) {
+function Section({ title, paragraphs }: { title: string; paragraphs: string[] }) {
   return (
-    <Entrance index={index} style={styles.section}>
-      <Surface>
-        <CardHeading icon={icon} title={title} />
-        <View style={styles.paragraphs}>
-          {paragraphs.map((paragraph) => (
-            <AppText key={paragraph} variant="body" color="textSecondary">
-              {paragraph}
-            </AppText>
-          ))}
-        </View>
-      </Surface>
-    </Entrance>
-  );
-}
-
-function CardHeading({ icon, title }: { icon: IconName; title: string }) {
-  return (
-    <View style={styles.heading}>
-      <IconBadge icon={icon} size={40} />
-      <AppText variant="title3" style={styles.headingText}>
+    <View style={styles.section}>
+      <AppText variant="title3" accessibilityRole="header" style={styles.heading}>
         {title}
       </AppText>
+      <View style={styles.paragraphs}>
+        {paragraphs.map((paragraph) => (
+          <AppText key={paragraph} variant="reading" selectable>
+            {paragraph}
+          </AppText>
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heroTitle: {
-    marginTop: Spacing.lg,
+  content: {
+    maxWidth: Layout.proseMaxWidth + Layout.screenPadding * 2,
+    paddingTop: Spacing.sm,
   },
-  heroBody: {
+  lead: {
     marginTop: Spacing.md,
   },
   section: {
-    marginTop: Spacing.lg,
+    marginTop: Spacing.xxxl,
   },
   heading: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-  },
-  headingText: {
-    flex: 1,
-    minWidth: 0,
+    marginBottom: Spacing.sm,
   },
   paragraphs: {
-    marginTop: Spacing.lg,
     gap: Spacing.md,
   },
-  paragraph: {
-    marginTop: Spacing.lg,
-  },
-  emailChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
-    minHeight: 44,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radii.pill,
+  button: {
+    marginTop: Spacing.xl,
   },
 });

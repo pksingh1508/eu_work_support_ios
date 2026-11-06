@@ -137,16 +137,8 @@ export function SavedScreen() {
 
   const listHeader = (
     <View style={styles.header}>
-      <Entrance from="none">
-        <AppText variant="display">Saved</AppText>
-        <AppText variant="subhead" color="textSecondary" style={styles.subtitle}>
-          Your curated collection of European working pathways.
-        </AppText>
-      </Entrance>
       {savedItems.length > 0 ? (
-        <Entrance from="none" delay={60} style={styles.filters}>
-          <FilterBar options={filterOptions} value={filter} onChange={setFilter} />
-        </Entrance>
+        <FilterBar options={filterOptions} value={filter} onChange={setFilter} />
       ) : null}
     </View>
   );
@@ -187,7 +179,9 @@ export function SavedScreen() {
 
   return (
     <TabScreen>
-      <Screen padded={false}>
+      {/* The list itself sits under the native large title and tab bar: UIKit
+          insets it (contentInsetAdjustmentBehavior) and collapses the title. */}
+      <Screen nativeHeader padded={false} edges={["left", "right"]}>
         <Animated.FlatList
           data={visibleItems}
           keyExtractor={savedItemKey}
@@ -197,7 +191,6 @@ export function SavedScreen() {
           ListEmptyComponent={<View style={styles.empty}>{listEmpty}</View>}
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"
-          showsVerticalScrollIndicator={false}
           initialNumToRender={8}
           windowSize={7}
         />
@@ -212,15 +205,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  subtitle: {
-    marginTop: Spacing.sm,
-    maxWidth: 320,
-  },
-  filters: {
-    marginTop: Spacing.xl,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
   cardWrap: {
     paddingHorizontal: Layout.screenPadding,

@@ -1,5 +1,4 @@
 import {
-  Button,
   Form,
   Host,
   LabeledContent,
@@ -10,6 +9,7 @@ import {
 import { pickerStyle, scrollContentBackground, tag } from "@expo/ui/swift-ui/modifiers";
 import { StyleSheet } from "react-native";
 
+import { NativeRow } from "@/components/ui/native-list.ios";
 import type { SettingsFormProps } from "@/features/settings/settings-form.types";
 import { themePreferenceOptions } from "@/features/theme/theme-store";
 import { useTheme } from "@/hooks/use-theme";
@@ -62,13 +62,19 @@ export function SettingsForm({
         </Section>
 
         <Section title="Help">
-          <Button label="FAQ" systemImage="questionmark.circle" onPress={onOpenFaq} />
-          <Button label="Contact support" systemImage="envelope" onPress={onOpenSupport} />
+          <NativeRow row={{ key: "faq", title: "FAQ", icon: "help", onPress: onOpenFaq }} />
+          <NativeRow
+            row={{ key: "support", title: "Contact Support", icon: "mail", onPress: onOpenSupport }}
+          />
         </Section>
 
         <Section title="Legal">
-          <Button label="Privacy policy" systemImage="hand.raised" onPress={onOpenPrivacy} />
-          <Button label="Terms and conditions" systemImage="doc.text" onPress={onOpenTerms} />
+          <NativeRow
+            row={{ key: "privacy", title: "Privacy Policy", icon: "lockShield", onPress: onOpenPrivacy }}
+          />
+          <NativeRow
+            row={{ key: "terms", title: "Terms and Conditions", icon: "legal", onPress: onOpenTerms }}
+          />
         </Section>
 
         <Section title="About">

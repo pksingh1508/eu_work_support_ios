@@ -1,11 +1,11 @@
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View, type TextInput } from "react-native";
+import { StyleSheet, View } from "react-native";
+import type { SearchBarCommands } from "react-native-screens";
 
 import { AppText } from "@/components/ui/app-text";
 import { Entrance } from "@/components/ui/entrance";
 import { Screen } from "@/components/ui/screen";
-import { SearchField } from "@/components/ui/search-field";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/state-views";
 import { TabScreen } from "@/components/ui/tab-screen";
@@ -32,7 +32,7 @@ export function SearchScreen() {
   const router = useRouter();
   const { contentSource } = useAuthAccess();
   const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck } = usePremiumGate();
-  const inputRef = useRef<TextInput>(null);
+  const searchBarRef = useRef<SearchBarCommands>(null);
   const requestIdRef = useRef(0);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -102,6 +102,8 @@ export function SearchScreen() {
 
       setQuery(nextSearch);
       setDebouncedQuery(nextSearch);
+      // Tapping a suggestion fills the system search bar too.
+      searchBarRef.current?.setText(nextSearch);
       setRecentSearches((current) => addRecentSearch(current, nextSearch));
     },
     [query],
@@ -129,14 +131,20 @@ export function SearchScreen() {
 
   return (
     <TabScreen>
-      <Screen scroll contentContainerStyle={styles.content}>
-        <Entrance from="none">
-          <AppText variant="display">Search</AppText>
-          <AppText variant="subhead" color="textSecondary" style={styles.subtitle}>
-            Visas, permits, documents and guides across Europe.
-          </AppText>
-        </Entrance>
-
+      {/* System search bar: on iOS 26 it moves into the Liquid Glass tab bar
+          of the search tab; it keeps dictation, scribble and Cancel. */}
+      {isPremium ? (
+        <Stack.SearchBar
+          ref={searchBarRef}
+          placeholder="Countries, visas and guides"
+          autoCapitalize="none"
+          hideWhenScrolling={false}
+          onChangeText={(event) => setQuery(event.nativeEvent.text)}
+          onSearchButtonPress={(event) => submitSearch(event.nativeEvent.text)}
+          onCancelButtonPress={clearSearch}
+        />
+      ) : null}
+      <Screen nativeHeader scroll contentContainerStyle={styles.content}>
         {planStatus === "free" ? (
           <PaywallCard feature="search" style={styles.field} />
         ) : null}
@@ -152,19 +160,6 @@ export function SearchScreen() {
           <LoadingState label="Checking your plan…" style={styles.field} />
         ) : null}
 
-        {isPremium ? (
-          <Entrance from="none" delay={60} style={styles.field}>
-            <SearchField
-              mode="input"
-              value={query}
-              onChangeText={setQuery}
-              onSubmit={() => submitSearch()}
-              onClear={clearSearch}
-              inputRef={inputRef}
-            />
-          </Entrance>
-        ) : null}
-
         {!isPremium ? null : !shouldSearch ? (
           <SearchSuggestions
             recentSearches={recentSearches}
@@ -174,9 +169,11 @@ export function SearchScreen() {
         ) : (
           <View style={styles.results}>
             <Entrance from="none" style={styles.resultsHeader}>
-              <AppText variant="title2">Results</AppText>
+              <AppText variant="title3" accessibilityRole="header">
+                Results
+              </AppText>
               {!isSearching && results.length > 0 ? (
-                <AppText variant="label" color="textTertiary">
+                <AppText variant="footnote" color="textSecondary">
                   {results.length} {results.length === 1 ? "guide" : "guides"}
                 </AppText>
               ) : null}
@@ -218,14 +215,10 @@ export function SearchScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: Spacing.lg,
-  },
-  subtitle: {
-    marginTop: Spacing.sm,
-    maxWidth: 320,
+    paddingTop: Spacing.sm,
   },
   field: {
-    marginTop: Spacing.xl,
+    marginTop: Spacing.sm,
     marginBottom: Spacing.xxl,
   },
   results: {

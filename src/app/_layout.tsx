@@ -56,30 +56,42 @@ function RootNavigator() {
   return (
     <Stack
       screenOptions={{
-        headerShown: false,
+        // Native UINavigationBar: Liquid Glass on iOS 26, content scrolls
+        // under it, back button keeps its long-press history menu.
+        headerShown: true,
+        headerTransparent: true,
+        headerShadowVisible: false,
+        headerLargeTitleShadowVisible: false,
+        headerBackButtonDisplayMode: "minimal",
+        headerTintColor: colors.primary,
+        headerTitleStyle: { color: colors.text },
+        headerLargeTitleStyle: { color: colors.text },
         animation: "default",
         gestureEnabled: true,
         fullScreenGestureEnabled: true,
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(auth)" options={{ presentation: "modal" }} />
-      <Stack.Screen name="country/[slug]" />
-      <Stack.Screen name="visa/[id]" />
-      <Stack.Screen name="profile/account" />
-      <Stack.Screen name="profile/change-password" />
-      <Stack.Screen name="profile/legal" />
-      <Stack.Screen name="profile/legal/[policy]" />
-      <Stack.Screen name="profile/sources-and-disclaimer" />
-      <Stack.Screen name="profile/support" />
-      <Stack.Screen name="profile/danger-zone" />
-      <Stack.Screen name="profile/faq" />
-      <Stack.Screen name="profile/app-info" />
-      <Stack.Screen name="profile/settings" />
-      <Stack.Screen name="profile/edit" />
-      <Stack.Screen name="profile/saved-items" />
-      <Stack.Screen name="profile/help" />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Home" }} />
+      <Stack.Screen name="(auth)" options={{ presentation: "modal", headerShown: false }} />
+      <Stack.Screen name="country/[slug]" options={{ title: "" }} />
+      <Stack.Screen name="visa/[id]" options={{ title: "" }} />
+      <Stack.Screen name="profile/account" options={{ title: "Account" }} />
+      <Stack.Screen name="profile/change-password" options={{ title: "Change Password" }} />
+      <Stack.Screen name="profile/legal" options={{ title: "Legal" }} />
+      <Stack.Screen name="profile/legal/[policy]" options={{ title: "" }} />
+      <Stack.Screen
+        name="profile/sources-and-disclaimer"
+        options={{ title: "Sources & Disclaimer" }}
+      />
+      <Stack.Screen name="profile/support" options={{ title: "Support" }} />
+      <Stack.Screen name="profile/danger-zone" options={{ title: "Delete Account" }} />
+      <Stack.Screen name="profile/faq" options={{ title: "FAQ" }} />
+      <Stack.Screen name="profile/app-info" options={{ title: "App Info" }} />
+      <Stack.Screen name="profile/settings" options={{ title: "Settings" }} />
+      <Stack.Screen name="profile/edit" options={{ title: "Edit Profile" }} />
+      <Stack.Screen name="profile/saved-items" options={{ headerShown: false }} />
+      <Stack.Screen name="profile/help" options={{ headerShown: false }} />
     </Stack>
   );
 }

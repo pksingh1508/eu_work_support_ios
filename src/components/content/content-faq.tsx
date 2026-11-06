@@ -39,7 +39,7 @@ export function ContentFaq({ section }: { section: ContentSection }) {
 
   return (
     <View>
-      <AppText variant="title3" style={styles.title}>
+      <AppText variant="title3" accessibilityRole="header" style={styles.title}>
         {section.title || "Frequently asked questions"}
       </AppText>
       <View style={styles.list}>
@@ -53,7 +53,7 @@ export function ContentFaq({ section }: { section: ContentSection }) {
               setOpenIndex((current) => (current === index ? null : index))
             }
           >
-            <AppText variant="body" color="textSecondary">
+            <AppText variant="reading" selectable>
               {item.answer}
             </AppText>
           </Accordion>
@@ -66,7 +66,6 @@ export function ContentFaq({ section }: { section: ContentSection }) {
 const styles = StyleSheet.create({
   title: {
     marginBottom: Spacing.md,
-    marginLeft: Spacing.xs,
   },
   list: {
     gap: Spacing.sm,

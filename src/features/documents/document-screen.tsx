@@ -1,35 +1,30 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useHeaderHeight } from "@react-navigation/elements";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Share, StyleSheet, View, type ScrollView } from "react-native";
 
 import { ContentSections } from "@/components/content/content-sections";
 import { AppButton } from "@/components/ui/app-button";
 import { AppText } from "@/components/ui/app-text";
 import { Chip } from "@/components/ui/chip";
 import { CountryFlag } from "@/components/ui/country-flag";
-import { Entrance } from "@/components/ui/entrance";
-import { HeroCard } from "@/components/ui/hero-card";
-import { IconButton } from "@/components/ui/icon-button";
-import { NativeMenuButton } from "@/components/ui/native-menu-button";
-import type { MenuAction } from "@/components/ui/native-menu-button.types";
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/state-views";
-import { Surface } from "@/components/ui/surface";
 import { getCountryCodeBySlug } from "@/constants/country";
-import { Radii, Spacing } from "@/constants/theme";
+import { Layout, Radii, Spacing } from "@/constants/theme";
 import { useAuthAccess } from "@/features/auth/access";
 import { PaywallCard } from "@/features/billing/paywall-card";
 import { usePremiumGate } from "@/features/billing/premium-gate";
 import { getCategoryIcon } from "@/features/content/category-icon";
 import {
   fetchVisaDocument,
+  getPrimedVisaDocument,
   type VisaDocument,
 } from "@/features/documents/document-service";
 import { useIsDocumentSaved, useSavedStore } from "@/features/saved/saved-store";
 import { haptic } from "@/lib/haptics";
-import { showErrorToast, showSavedToast, showUnsavedToast } from "@/lib/toast";
+import { showErrorToast } from "@/lib/toast";
 
 const MAX_HERO_TAGS = 3;
 
@@ -41,8 +36,14 @@ export function DocumentScreen() {
   const { planStatus, isPremium, isPlanUnavailable, retryPlanCheck, requirePremium } =
     usePremiumGate();
   const requestIdRef = useRef(0);
-  const [document, setDocument] = useState<VisaDocument | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
+  const headerHeight = useHeaderHeight();
+  const sectionsTopRef = useRef(0);
+  const sectionOffsetsRef = useRef<Record<number, number>>({});
+  const [document, setDocument] = useState<VisaDocument | null>(() =>
+    getPrimedVisaDocument(documentId),
+  );
+  const [isLoading, setIsLoading] = useState(() => !getPrimedVisaDocument(documentId));
   const [error, setError] = useState<string | null>(null);
 
   const isSaved = useIsDocumentSaved(document?.id);
@@ -65,7 +66,9 @@ export function DocumentScreen() {
 
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
-    setIsLoading(true);
+    // A guide primed by the country screen stays on screen while it refreshes.
+    const hasPrimed = Boolean(getPrimedVisaDocument(documentId));
+    setIsLoading(!hasPrimed);
     setError(null);
 
     fetchVisaDocument(documentId, contentSource)
@@ -74,8 +77,10 @@ export function DocumentScreen() {
           return;
         }
 
-        setDocument(nextDocument);
-        setError(nextDocument ? null : "Guide not found.");
+        if (nextDocument || !hasPrimed) {
+          setDocument(nextDocument);
+          setError(nextDocument ? null : "Guide not found.");
+        }
       })
       .catch((fetchError) => {
         if (requestIdRef.current !== requestId) {
@@ -83,8 +88,10 @@ export function DocumentScreen() {
         }
 
         console.warn("Unable to fetch visa document", fetchError);
-        setDocument(null);
-        setError("Unable to load this guide right now.");
+        if (!hasPrimed) {
+          setDocument(null);
+          setError("Unable to load this guide right now.");
+        }
       })
       .finally(() => {
         if (requestIdRef.current === requestId) {
@@ -148,7 +155,6 @@ export function DocumentScreen() {
         console.warn("Unable to update saved document", saveError);
         showErrorToast("Could not save guide", "Please try again in a moment.");
       });
-      showSavedToast(document.title, "document");
       return;
     }
 
@@ -159,7 +165,31 @@ export function DocumentScreen() {
         showErrorToast("Could not remove guide", "Please try again in a moment.");
       },
     );
-    showUnsavedToast(document.title, "document");
+  };
+
+  const shareGuide = () => {
+    if (!document) {
+      return;
+    }
+
+    void Share.share({
+      title: document.title,
+      message: [document.title, document.shortDescription].filter(Boolean).join("\n\n"),
+      url: `euworksupport://visa/${document.id}`,
+    });
+  };
+
+  const jumpToSection = (index: number) => {
+    const offset = sectionOffsetsRef.current[index];
+    if (offset == null) {
+      return;
+    }
+
+    haptic.selection();
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, sectionsTopRef.current + offset - headerHeight - Spacing.md),
+      animated: true,
+    });
   };
 
   const openCountry = () => {
@@ -168,47 +198,57 @@ export function DocumentScreen() {
     }
   };
 
-  const menuActions: MenuAction[] = [
-    { key: "country", title: "View country guides", icon: "flag", onPress: openCountry },
-    {
-      key: "save",
-      title: isSaved ? "Remove from saved" : "Save guide",
-      icon: isSaved ? "trash" : "bookmark",
-      destructive: isSaved,
-      onPress: toggleSaved,
-    },
-  ];
-
   const overviewText = document
     ? (document.shortDescription ??
       document.intro ??
       `${document.countryName} ${document.categoryName.toLowerCase()} guide.`)
     : "";
   const sections = document?.contentJson.sections ?? [];
+  const outline = sections
+    .map((section, index) => ({ index, title: section.title?.trim() ?? "" }))
+    .filter((entry) => entry.title.length > 0);
 
   return (
     <Screen
+      nativeHeader
       scroll
-      header={
-        <ScreenHeader
-          padded
-          title={document?.countryName ?? "Guide"}
-          right={
-            <View style={styles.headerActions}>
-              <IconButton
-                icon={isSaved ? "bookmarkFill" : "bookmark"}
-                variant={isSaved ? "success" : "glass"}
-                disabled={!document || isSaving}
-                accessibilityLabel={isSaved ? "Remove guide from saved" : "Save guide"}
-                onPress={toggleSaved}
-              />
-              <NativeMenuButton actions={menuActions} accessibilityLabel="Guide options" />
-            </View>
-          }
-        />
-      }
+      scrollRef={scrollRef}
       contentContainerStyle={styles.content}
     >
+      {/* Text-dense page: a hard edge keeps scrolled lines from showing
+          through behind the bar title. */}
+      <Stack.Screen
+        options={{ title: document?.countryName ?? "", scrollEdgeEffects: { top: "hard" } }}
+      />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={isSaved ? "bookmark.fill" : "bookmark"}
+          disabled={!document || isSaving}
+          accessibilityLabel={isSaved ? "Remove guide from saved" : "Save guide"}
+          onPress={toggleSaved}
+        />
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Guide options">
+          {outline.length > 1 ? (
+            <Stack.Toolbar.Menu title="On This Page" icon="list.bullet">
+              {outline.map((entry) => (
+                <Stack.Toolbar.MenuAction
+                  key={entry.index}
+                  onPress={() => jumpToSection(entry.index)}
+                >
+                  {entry.title}
+                </Stack.Toolbar.MenuAction>
+              ))}
+            </Stack.Toolbar.Menu>
+          ) : null}
+          <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={shareGuide}>
+            Share
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction icon="flag" onPress={openCountry}>
+            {document ? `All ${document.countryName} Guides` : "Country Guides"}
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+
       {planStatus === "free" ? (
         <PaywallCard feature="document" onBack={() => router.back()} />
       ) : null}
@@ -222,7 +262,8 @@ export function DocumentScreen() {
         />
       ) : null}
 
-      {(planStatus === "unknown" && !isPlanUnavailable) || (isPremium && isLoading) ? (
+      {!document &&
+      ((planStatus === "unknown" && !isPlanUnavailable) || (isPremium && isLoading)) ? (
         <DocumentSkeleton />
       ) : null}
 
@@ -235,65 +276,65 @@ export function DocumentScreen() {
         />
       ) : null}
 
-      {isPremium && !isLoading && document ? (
+      {isPremium && document ? (
         <>
-          <Entrance index={0}>
-            <HeroCard>
-              <View style={styles.heroTop}>
-                <CountryFlag
-                  code={getCountryCodeBySlug(document.countrySlug)}
-                  emoji={document.countryFlagEmoji}
-                  size="md"
-                />
-                <View style={styles.heroChips}>
-                  <Chip
-                    label={document.categoryName}
-                    icon={getCategoryIcon(document.categoryIcon)}
-                    tone="inverse"
-                  />
-                  {document.isPremium ? (
-                    <Chip label="Pro" icon="sparkles" tone="inverse" />
-                  ) : null}
-                </View>
-              </View>
-              <AppText variant="title1" color="onHero" style={styles.heroTitle}>
-                {document.title}
-              </AppText>
-              <AppText variant="subhead" color="onHeroMuted" numberOfLines={3}>
-                {overviewText}
-              </AppText>
-              {document.tags.length > 0 ? (
-                <View style={styles.tags}>
-                  {document.tags.slice(0, MAX_HERO_TAGS).map((tag) => (
-                    <Chip key={tag} label={tag} tone="inverse" uppercase />
-                  ))}
-                </View>
-              ) : null}
-            </HeroCard>
-          </Entrance>
-
-          {document.intro && document.intro !== overviewText ? (
-            <Entrance index={1} style={styles.section}>
-              <Surface level={1}>
-                <AppText variant="body" color="textSecondary">
-                  {document.intro}
-                </AppText>
-              </Surface>
-            </Entrance>
+          {/* Reading header: plain type on the page, no dark card above the text. */}
+          <View style={styles.meta}>
+            <CountryFlag
+              code={getCountryCodeBySlug(document.countrySlug)}
+              emoji={document.countryFlagEmoji}
+              size="sm"
+            />
+            <Chip
+              label={document.categoryName}
+              icon={getCategoryIcon(document.categoryIcon)}
+              tone="primary"
+            />
+          </View>
+          <AppText variant="title1" accessibilityRole="header" selectable style={styles.title}>
+            {document.title}
+          </AppText>
+          {overviewText ? (
+            <AppText variant="reading" color="textSecondary" selectable>
+              {overviewText}
+            </AppText>
+          ) : null}
+          {document.tags.length > 0 ? (
+            <View style={styles.tags}>
+              {document.tags.slice(0, MAX_HERO_TAGS).map((tag) => (
+                <Chip key={tag} label={tag} tone="neutral" />
+              ))}
+            </View>
           ) : null}
 
-          <View style={styles.section}>
-            <ContentSections sections={sections} />
+          {document.intro && document.intro !== overviewText ? (
+            <AppText variant="reading" selectable style={styles.section}>
+              {document.intro}
+            </AppText>
+          ) : null}
+
+          <View
+            style={styles.section}
+            onLayout={(event) => {
+              sectionsTopRef.current = event.nativeEvent.layout.y;
+            }}
+          >
+            <ContentSections
+              sections={sections}
+              onSectionLayout={(index, y) => {
+                sectionOffsetsRef.current[index] = y;
+              }}
+            />
           </View>
 
-          <Entrance index={sections.length + 2} style={styles.section}>
+          <View style={styles.footer}>
             <AppButton
               label={`All ${document.countryName} guides`}
               icon="flag"
               variant="secondary"
               onPress={openCountry}
             />
-          </Entrance>
+          </View>
         </>
       ) : null}
     </Screen>
@@ -312,27 +353,19 @@ function DocumentSkeleton() {
 }
 
 const styles = StyleSheet.create({
+  // One reading column: ~65 characters per line at most, centred on wide
+  // windows (iPhone Duo open, iPad).
   content: {
+    maxWidth: Layout.proseMaxWidth + Layout.screenPadding * 2,
     paddingTop: Spacing.sm,
   },
-  headerActions: {
+  meta: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
   },
-  heroTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: Spacing.md,
-  },
-  heroChips: {
-    flexDirection: "row",
-    gap: Spacing.sm,
-    flexShrink: 1,
-  },
-  heroTitle: {
-    marginTop: Spacing.xl,
+  title: {
+    marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
   tags: {
@@ -342,7 +375,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
   },
   section: {
-    marginTop: Spacing.xl,
+    marginTop: Spacing.xxl,
+  },
+  footer: {
+    marginTop: Spacing.huge,
   },
   rowGap: {
     marginTop: Spacing.md,

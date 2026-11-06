@@ -1,6 +1,6 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Share, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/ui/app-text";
 import { Chip } from "@/components/ui/chip";
@@ -9,18 +9,14 @@ import { Entrance } from "@/components/ui/entrance";
 import { HeroCard } from "@/components/ui/hero-card";
 import { Icon } from "@/components/ui/icon";
 import { IconBadge } from "@/components/ui/icon-badge";
-import { IconButton } from "@/components/ui/icon-button";
-import { NativeMenuButton } from "@/components/ui/native-menu-button";
-import type { MenuAction } from "@/components/ui/native-menu-button.types";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/state-views";
 import { Surface } from "@/components/ui/surface";
 import { getCountryCodeBySlug, getCountryNameBySlug } from "@/constants/country";
-import { Radii, Spacing } from "@/constants/theme";
+import { Layout, Radii, Spacing } from "@/constants/theme";
 import { useAuthAccess } from "@/features/auth/access";
 import { CountryDocumentRow } from "@/features/countries/country-document-row";
 import {
@@ -28,14 +24,14 @@ import {
   type Country,
   type CountryDocument,
 } from "@/features/countries/country-service";
-import { DocumentSheet } from "@/features/countries/document-sheet";
+import { primeVisaDocument } from "@/features/documents/document-service";
 import { PaywallCard } from "@/features/billing/paywall-card";
 import { usePremiumGate } from "@/features/billing/premium-gate";
 import { useIsCountrySaved, useSavedStore } from "@/features/saved/saved-store";
 import { useTheme } from "@/hooks/use-theme";
 import { formatLongDate } from "@/lib/format";
 import { haptic } from "@/lib/haptics";
-import { showErrorToast, showSavedToast, showUnsavedToast } from "@/lib/toast";
+import { showErrorToast } from "@/lib/toast";
 import { normalizeExternalUrl, openExternalUrl } from "@/lib/url";
 
 const POPULAR_RANK_THRESHOLD = 10;
@@ -51,7 +47,6 @@ export function CountryScreen() {
   const offlineCountryName = getCountryNameBySlug(countrySlug);
   const requestIdRef = useRef(0);
   const [country, setCountry] = useState<Country | null>(null);
-  const [selectedDocument, setSelectedDocument] = useState<CountryDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -168,7 +163,6 @@ export function CountryScreen() {
         console.warn("Unable to update saved country", saveError);
         showErrorToast("Could not save country", "Please try again in a moment.");
       });
-      showSavedToast(country.name, "country");
       return;
     }
 
@@ -179,67 +173,86 @@ export function CountryScreen() {
         showErrorToast("Could not remove country", "Please try again in a moment.");
       },
     );
-    showUnsavedToast(country.name, "country");
   };
 
-  const menuActions: MenuAction[] = [
-    ...(officialUrl
-      ? [
-          {
-            key: "official",
-            title: "Official website",
-            icon: "globe" as const,
-            onPress: () => openExternalUrl(officialUrl, "the official website"),
-          },
-        ]
-      : []),
-    ...(officialImmigrationUrl
-      ? [
-          {
-            key: "immigration",
-            title: "Immigration website",
-            icon: "idCard" as const,
-            onPress: () =>
-              openExternalUrl(officialImmigrationUrl, "the immigration website"),
-          },
-        ]
-      : []),
-    {
-      key: "save",
-      title: isSaved ? "Remove from saved" : "Save country",
-      icon: isSaved ? ("trash" as const) : ("bookmark" as const),
-      destructive: isSaved,
-      onPress: toggleSaved,
+  const shareCountry = () => {
+    if (!country) {
+      return;
+    }
+
+    void Share.share({
+      title: `${country.name} guides`,
+      message: `${country.name}: visa, work permit and residence guides in EU Work Support.`,
+      url: `euworksupport://country/${country.slug}`,
+    });
+  };
+
+  const openDocument = useCallback(
+    (document: CountryDocument) => {
+      if (!country) {
+        return;
+      }
+
+      // The reader opens instantly with what this screen already loaded.
+      primeVisaDocument({
+        id: document.id,
+        title: document.title,
+        slug: document.slug,
+        shortDescription: document.shortDescription,
+        intro: document.intro,
+        contentJson: document.contentJson,
+        isPremium: document.isPremium,
+        tags: document.tags,
+        countryName: country.name,
+        countrySlug: country.slug,
+        countryFlagEmoji: country.flagEmoji,
+        countryDescription: country.shortDescription,
+        categoryName: document.categoryName,
+        categorySlug: document.categorySlug,
+        categoryIcon: document.categoryIcon,
+      });
+      router.push(`/visa/${document.id}`);
     },
-  ];
+    [country, router],
+  );
+
+  const title = country?.name ?? offlineCountryName ?? "Country";
 
   return (
-    <Screen
-      scroll
-      header={
-        <ScreenHeader
-          padded
-          title={country?.name ?? offlineCountryName ?? "Country"}
-          right={
-            <View style={styles.headerActions}>
-              <IconButton
-                icon={isSaved ? "bookmarkFill" : "bookmark"}
-                variant={isSaved ? "success" : "glass"}
-                disabled={!country || isSaving}
-                accessibilityLabel={
-                  isSaved
-                    ? `Remove ${country?.name ?? "country"} from saved`
-                    : `Save ${country?.name ?? "country"}`
-                }
-                onPress={toggleSaved}
-              />
-              <NativeMenuButton actions={menuActions} accessibilityLabel="Country options" />
-            </View>
-          }
+    <Screen nativeHeader scroll contentContainerStyle={styles.content}>
+      <Stack.Screen options={{ title }} />
+      {/* Native bar buttons: Liquid Glass, SF Symbols, system menu. */}
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={isSaved ? "bookmark.fill" : "bookmark"}
+          disabled={!country || isSaving}
+          accessibilityLabel={isSaved ? `Remove ${title} from saved` : `Save ${title}`}
+          onPress={toggleSaved}
         />
-      }
-      contentContainerStyle={styles.content}
-    >
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel={`${title} options`}>
+          <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={shareCountry}>
+            Share
+          </Stack.Toolbar.MenuAction>
+          {officialUrl ? (
+            <Stack.Toolbar.MenuAction
+              icon="globe"
+              onPress={() => openExternalUrl(officialUrl, "the official website")}
+            >
+              Official Website
+            </Stack.Toolbar.MenuAction>
+          ) : null}
+          {officialImmigrationUrl ? (
+            <Stack.Toolbar.MenuAction
+              icon="person.text.rectangle"
+              onPress={() =>
+                openExternalUrl(officialImmigrationUrl, "the immigration website")
+              }
+            >
+              Immigration Website
+            </Stack.Toolbar.MenuAction>
+          ) : null}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       {planStatus === "free" ? (
         <PaywallCard
           feature="country"
@@ -293,16 +306,13 @@ export function CountryScreen() {
             </HeroCard>
           </Entrance>
 
-          <Entrance index={1} style={styles.section}>
-            <Surface>
-              <View style={styles.overviewHeader}>
-                <IconBadge icon="info" tone="primary" size={36} iconSize={18} radius="sm" />
-                <AppText variant="title3">Overview</AppText>
-              </View>
-              <AppText variant="body" color="textSecondary" style={styles.overviewBody}>
-                {overviewText}
-              </AppText>
-            </Surface>
+          <Entrance index={1} style={[styles.section, styles.prose]}>
+            <AppText variant="title3" accessibilityRole="header">
+              Overview
+            </AppText>
+            <AppText variant="reading" selectable style={styles.overviewBody}>
+              {overviewText}
+            </AppText>
           </Entrance>
 
           <Entrance index={2} style={styles.section}>
@@ -316,7 +326,7 @@ export function CountryScreen() {
 
           {country.documents.map((document, index) => (
             <Entrance key={document.id} index={index + 3} style={styles.row}>
-              <CountryDocumentRow document={document} onPress={setSelectedDocument} />
+              <CountryDocumentRow document={document} onPress={openDocument} />
             </Entrance>
           ))}
 
@@ -354,7 +364,6 @@ export function CountryScreen() {
         </>
       ) : null}
 
-      <DocumentSheet document={selectedDocument} onClose={() => setSelectedDocument(null)} />
     </Screen>
   );
 }
@@ -383,7 +392,7 @@ function SourceLink({ title, url }: { title: string; url: string }) {
       scaleTo={0.985}
       accessibilityRole="link"
       accessibilityLabel={`Open ${title.toLowerCase()}`}
-      accessibilityHint="Opens the website in your browser"
+      accessibilityHint="Opens the official website in Safari"
       style={[styles.sourceLink, { backgroundColor: colors.surfaceLowest }]}
     >
       <IconBadge icon="globe" tone="primary" size={36} iconSize={16} radius="sm" />
@@ -416,11 +425,6 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: Spacing.sm,
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
   heroTop: {
     flexDirection: "row",
     alignItems: "center",
@@ -447,13 +451,11 @@ const styles = StyleSheet.create({
   row: {
     marginTop: Spacing.md,
   },
-  overviewHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+  prose: {
+    maxWidth: Layout.proseMaxWidth,
   },
   overviewBody: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   reviewed: {
     flexDirection: "row",

@@ -112,7 +112,7 @@ const PopularDestinationCard = memo(function PopularDestinationCard({
 
       <View style={styles.cardTop}>
         <CountryFlag code={details.code} size="sm" />
-        <Chip label={details.demand} tone="inverse" uppercase />
+        <Chip label={details.demand} tone="onImage" uppercase />
       </View>
 
       <View style={styles.cardBottom}>

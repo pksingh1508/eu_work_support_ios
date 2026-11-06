@@ -84,6 +84,7 @@ export type CountryDocument = {
   intro: string | null;
   contentJson: ContentJson;
   isPremium: boolean;
+  tags: string[];
   sortOrder: number;
   categoryName: string;
   categorySlug: string;
@@ -121,6 +122,7 @@ function mapCountryResponse(row: CountryResponse): Country {
         intro: document.intro,
         contentJson: normalizeContentJson(document.content_json),
         isPremium: document.is_premium,
+        tags: document.tags ?? [],
         sortOrder: document.sort_order ?? 100,
         categoryName: category?.name ?? "Guide",
         categorySlug: category?.slug ?? "guide",

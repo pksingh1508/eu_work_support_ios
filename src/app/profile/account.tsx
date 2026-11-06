@@ -1,18 +1,10 @@
 import { useClerk, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
-import { Alert, StyleSheet, View } from "react-native";
-
-import { AppText } from "@/components/ui/app-text";
-import { Avatar } from "@/components/ui/avatar";
-import { Entrance } from "@/components/ui/entrance";
-import { ListGroup } from "@/components/ui/list-group";
-import { ListRow } from "@/components/ui/list-row";
+import { NativeList } from "@/components/ui/native-list";
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
-import { Surface } from "@/components/ui/surface";
-import { Spacing } from "@/constants/theme";
 import { useAuthAccess } from "@/features/auth/access";
 import { AccountGuard } from "@/features/auth/components/account-guard";
+import { confirmDestructive } from "@/lib/confirm";
 import { haptic } from "@/lib/haptics";
 import { clearCachedAuthSnapshot } from "@/lib/local-storage";
 
@@ -37,83 +29,58 @@ function ProfileAccountContent() {
     .trim();
   const fullName = databaseName || user?.fullName || user?.firstName || "Welcome";
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     haptic.warning();
-    Alert.alert("Sign out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign out",
-        style: "destructive",
-        onPress: async () => {
-          clearCachedAuthSnapshot();
-          await signOut();
-        },
-      },
-    ]);
+    const confirmed = await confirmDestructive({
+      title: "Sign out of EU Work Support?",
+      message: "Premium bought with this account comes back when you log in again.",
+      confirmLabel: "Sign Out",
+    });
+
+    if (confirmed) {
+      clearCachedAuthSnapshot();
+      await signOut();
+    }
   };
 
   return (
-    <Screen scroll header={<ScreenHeader padded title="Account" />}>
-      <Entrance index={0}>
-        <Surface style={styles.identity}>
-          <Avatar name={fullName} imageUrl={profile?.imageUrl ?? user?.imageUrl} size={56} />
-          <View style={styles.identityText}>
-            <AppText variant="title3" numberOfLines={1}>
-              {fullName}
-            </AppText>
-            {email ? (
-              <AppText variant="footnote" color="textSecondary" numberOfLines={1}>
-                {email}
-              </AppText>
-            ) : null}
-          </View>
-        </Surface>
-      </Entrance>
-
-      <Entrance index={1} style={styles.section}>
-        <ListGroup title="Details">
-          <ListRow
-            icon="edit"
-            title="Edit profile"
-            subtitle="Update your first and last name"
-            onPress={() => router.push("/profile/edit")}
-          />
-          <ListRow
-            icon="lock"
-            title="Change password"
-            subtitle="Choose a new secure password"
-            onPress={() => router.push("/profile/change-password")}
-          />
-        </ListGroup>
-      </Entrance>
-
-      <Entrance index={2} style={styles.section}>
-        <ListGroup title="Session">
-          <ListRow
-            icon="signOut"
-            tone="danger"
-            title="Sign out"
-            trailing="none"
-            onPress={handleSignOut}
-          />
-        </ListGroup>
-      </Entrance>
+    <Screen nativeHeader padded={false} edges={[]}>
+      <NativeList
+        identity={{ name: fullName, detail: email || undefined }}
+        sections={[
+          {
+            key: "details",
+            title: "Details",
+            rows: [
+              {
+                key: "edit",
+                title: "Edit Profile",
+                icon: "edit",
+                onPress: () => router.push("/profile/edit"),
+              },
+              {
+                key: "password",
+                title: "Change Password",
+                icon: "lock",
+                onPress: () => router.push("/profile/change-password"),
+              },
+            ],
+          },
+          {
+            key: "session",
+            rows: [
+              {
+                key: "sign-out",
+                title: "Sign Out",
+                icon: "signOut",
+                destructive: true,
+                chevron: false,
+                onPress: () => void handleSignOut(),
+              },
+            ],
+          },
+        ]}
+      />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  identity: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.lg,
-  },
-  identityText: {
-    flex: 1,
-    minWidth: 0,
-    gap: Spacing.xxs,
-  },
-  section: {
-    marginTop: Spacing.xxl,
-  },
-});

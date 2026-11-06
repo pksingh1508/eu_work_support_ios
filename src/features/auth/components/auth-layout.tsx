@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import type { PropsWithChildren } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -7,7 +7,6 @@ import { Entrance } from "@/components/ui/entrance";
 import { Icon } from "@/components/ui/icon";
 import type { IconName } from "@/components/ui/icon-names";
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
 import { Surface, type SurfaceTone } from "@/components/ui/surface";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -34,13 +33,18 @@ export function AuthLayout({
   const router = useRouter();
 
   return (
-    <Screen
-      scroll
-      keyboard
-      edges={["top", "bottom", "left", "right"]}
-      header={<ScreenHeader padded title={headerTitle} backIcon={backIcon} />}
-      contentContainerStyle={styles.content}
-    >
+    <Screen nativeHeader scroll keyboard contentContainerStyle={styles.content}>
+      <Stack.Screen options={{ title: headerTitle }} />
+      {/* Modal root: the system close button. Pushed steps keep the native back button. */}
+      {backIcon === "close" ? (
+        <Stack.Toolbar placement="left">
+          <Stack.Toolbar.Button
+            icon="xmark"
+            accessibilityLabel="Close"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          />
+        </Stack.Toolbar>
+      ) : null}
       <Entrance from="none">
         <AppText variant="title1">{title}</AppText>
         <AppText variant="body" color="textSecondary" style={styles.subtitle}>

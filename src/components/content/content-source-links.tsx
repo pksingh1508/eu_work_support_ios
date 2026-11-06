@@ -4,7 +4,6 @@ import { AppText } from "@/components/ui/app-text";
 import { Icon } from "@/components/ui/icon";
 import { IconBadge } from "@/components/ui/icon-badge";
 import { PressableScale } from "@/components/ui/pressable-scale";
-import { Surface } from "@/components/ui/surface";
 import { Radii, Spacing } from "@/constants/theme";
 import {
   stringifyValue,
@@ -35,6 +34,14 @@ function toSourceLinks(section: ContentSection): SourceLink[] {
     .filter((link): link is SourceLink => Boolean(link));
 }
 
+function hostOf(url: string) {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 export function ContentSourceLinks({ section }: { section: ContentSection }) {
   const { colors } = useTheme();
   const links = toSourceLinks(section);
@@ -44,8 +51,10 @@ export function ContentSourceLinks({ section }: { section: ContentSection }) {
   }
 
   return (
-    <Surface>
-      <AppText variant="title3">{section.title || "Official sources"}</AppText>
+    <View>
+      <AppText variant="title3" accessibilityRole="header">
+        {section.title || "Official sources"}
+      </AppText>
       <View style={styles.list}>
         {links.map((link, index) => (
           <PressableScale
@@ -54,29 +63,29 @@ export function ContentSourceLinks({ section }: { section: ContentSection }) {
             scaleTo={0.985}
             accessibilityRole="link"
             accessibilityLabel={`Open ${link.label}`}
-            accessibilityHint="Opens the website in your browser"
-            style={[styles.link, { backgroundColor: colors.surfaceLow }]}
+            accessibilityHint="Opens the official website in Safari"
+            style={[styles.link, { backgroundColor: colors.surfaceLowest }]}
           >
             <IconBadge icon="link" tone="primary" size={36} iconSize={16} radius="sm" />
             <View style={styles.linkText}>
-              <AppText variant="callout" numberOfLines={2}>
+              <AppText variant="headline" numberOfLines={3}>
                 {link.label}
               </AppText>
-              <AppText variant="caption" color="textTertiary" numberOfLines={1}>
-                {link.url}
+              <AppText variant="footnote" color="textSecondary" numberOfLines={1}>
+                {hostOf(link.url)}
               </AppText>
             </View>
             <Icon name="arrowUpRight" size={16} color={colors.textTertiary} />
           </PressableScale>
         ))}
       </View>
-    </Surface>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   list: {
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
     gap: Spacing.sm,
   },
   link: {
