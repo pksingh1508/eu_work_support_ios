@@ -136,3 +136,27 @@ export async function fetchVisaDocument(id: string, source: ContentSource) {
 
   return data ? mapDocument(data as RawDocument) : null;
 }
+
+/**
+ * Guides already loaded with their country (country screen → guide): the
+ * reader shows them instantly and refreshes in the background instead of
+ * starting from a skeleton.
+ */
+const primedDocuments = new Map<string, VisaDocument>();
+const MAX_PRIMED_DOCUMENTS = 40;
+
+export function primeVisaDocument(document: VisaDocument) {
+  primedDocuments.delete(document.id);
+  primedDocuments.set(document.id, document);
+
+  if (primedDocuments.size > MAX_PRIMED_DOCUMENTS) {
+    const oldest = primedDocuments.keys().next().value;
+    if (oldest) {
+      primedDocuments.delete(oldest);
+    }
+  }
+}
+
+export function getPrimedVisaDocument(id: string | undefined) {
+  return id ? (primedDocuments.get(id) ?? null) : null;
+}

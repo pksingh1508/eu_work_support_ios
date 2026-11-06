@@ -12,7 +12,9 @@ export type ChipTone =
   | "tertiary"
   | "success"
   | "inverse"
-  | "dark";
+  | "dark"
+  /** On photos: a dark translucent backing keeps white text legible on any image. */
+  | "onImage";
 
 export type ChipProps = {
   label: string;
@@ -43,6 +45,7 @@ export function Chip({
     success: { background: colors.successSoft, text: colors.success },
     inverse: { background: colors.heroSurface, text: colors.onHero },
     dark: { background: colors.heroStart, text: colors.onHero },
+    onImage: { background: "rgba(8, 14, 28, 0.58)", text: "#FFFFFF" },
   }[tone];
 
   const isSmall = size === "sm";

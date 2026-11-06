@@ -5,6 +5,7 @@ import { AppText } from "@/components/ui/app-text";
 import { Entrance } from "@/components/ui/entrance";
 import { IconBadge, type IconBadgeTone } from "@/components/ui/icon-badge";
 import type { IconName } from "@/components/ui/icon-names";
+import { NativeUnavailable } from "@/components/ui/native-unavailable";
 import { Spinner } from "@/components/ui/spinner";
 import { Surface } from "@/components/ui/surface";
 import { Spacing } from "@/constants/theme";
@@ -51,6 +52,30 @@ function MessageState({
   secondaryAction,
   style,
 }: MessageStateProps) {
+  const actions =
+    action || secondaryAction ? (
+      <View style={[styles.actions, NativeUnavailable ? styles.nativeActions : null]}>
+        {action ? <AppButton label={action.label} onPress={action.onPress} size="md" /> : null}
+        {secondaryAction ? (
+          <AppButton
+            label={secondaryAction.label}
+            onPress={secondaryAction.onPress}
+            variant="ghost"
+            size="md"
+          />
+        ) : null}
+      </View>
+    ) : null;
+
+  if (NativeUnavailable) {
+    return (
+      <View style={[styles.native, style]}>
+        <NativeUnavailable icon={icon} title={title} message={message} />
+        {actions}
+      </View>
+    );
+  }
+
   return (
     <Entrance style={style}>
       <Surface style={styles.card}>
@@ -109,6 +134,16 @@ const styles = StyleSheet.create({
   card: {
     alignItems: "center",
     paddingVertical: Spacing.xxxl,
+  },
+  native: {
+    alignItems: "center",
+    paddingVertical: Spacing.lg,
+  },
+  nativeActions: {
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 320,
+    marginTop: Spacing.sm,
   },
   loadingLabel: {
     marginTop: Spacing.lg,

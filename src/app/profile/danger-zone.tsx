@@ -8,7 +8,6 @@ import { Entrance } from "@/components/ui/entrance";
 import { Icon } from "@/components/ui/icon";
 import { IconBadge } from "@/components/ui/icon-badge";
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
 import { Surface } from "@/components/ui/surface";
 import { Spacing } from "@/constants/theme";
 import { AccountGuard } from "@/features/auth/components/account-guard";
@@ -83,7 +82,7 @@ function DangerZoneContent() {
   };
 
   return (
-    <Screen scroll header={<ScreenHeader padded title="Danger zone" />}>
+    <Screen scroll nativeHeader>
       <Entrance>
         <Surface tone="error">
           <IconBadge icon="warning" tone="danger" size={52} radius="md" />

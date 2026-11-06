@@ -50,10 +50,9 @@ export function BillingScreen() {
 
   return (
     <TabScreen>
-      <Screen scroll contentContainerStyle={styles.content}>
+      <Screen nativeHeader scroll contentContainerStyle={styles.content}>
         <Entrance from="none">
-          <AppText variant="display">Billing</AppText>
-          <AppText variant="subhead" color="textSecondary" style={styles.subtitle}>
+          <AppText variant="body" color="textSecondary" style={styles.subtitle}>
             {isPremium
               ? isGuest
                 ? "Premium is unlocked on this device."
@@ -268,11 +267,10 @@ export function BillingScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.xs,
   },
   subtitle: {
-    marginTop: Spacing.sm,
-    maxWidth: 320,
+    maxWidth: 420,
   },
   section: {
     marginTop: Spacing.xxl,

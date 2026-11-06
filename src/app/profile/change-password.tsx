@@ -7,7 +7,6 @@ import { AppButton } from "@/components/ui/app-button";
 import { AppText } from "@/components/ui/app-text";
 import { Entrance } from "@/components/ui/entrance";
 import { Screen } from "@/components/ui/screen";
-import { ScreenHeader } from "@/components/ui/screen-header";
 import { Surface } from "@/components/ui/surface";
 import { TextField } from "@/components/ui/text-field";
 import { Spacing } from "@/constants/theme";
@@ -91,7 +90,7 @@ function ChangePasswordContent() {
   };
 
   return (
-    <Screen scroll keyboard header={<ScreenHeader padded title="Change password" />}>
+    <Screen scroll keyboard nativeHeader>
       <Entrance from="none">
         <AppText variant="title2">Update your password</AppText>
         <AppText variant="subhead" color="textSecondary" style={styles.subtitle}>
